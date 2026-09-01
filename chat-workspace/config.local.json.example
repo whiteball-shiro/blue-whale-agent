@@ -10,6 +10,7 @@
   "localLlamaExe": "",
   "localLlamaApiKey": "",
   "localChatTemplate": "",
+  "localCudaVendor": "",
   "localExtraArgs": "",
   "localCtxSize": 4096,
   "localGpuLayers": 20,

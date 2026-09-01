@@ -16,6 +16,7 @@
 #   localModelId         用 lms 恢复时要加载的模型 id（留空则自动挑第一个非 embedding）
 #   localLlamaApiKey     llama-server 的 api-key（可选）
 #   localChatTemplate    聊天模板 .jinja 路径（可选）
+#   localCudaVendor      CUDA vendor 目录（可选，直启时加进 PATH）
 #   localExtraArgs       直启 llama-server 的额外参数（可选，如 "--batch-size 512 --flash-attn on"）
 #   localCtxSize / localGpuLayers / localThreads  直启时的上下文 / 卸载层数 / 线程数
 #   localLlamaPort       脚本直启时用的端口（默认 49674）
@@ -101,6 +102,7 @@ $modelPath   = Cfg 'localModelPath' ''
 $mmproj      = Cfg 'localModelMmproj' ''
 $apiKey      = Cfg 'localLlamaApiKey' ''
 $chatTemplate= Cfg 'localChatTemplate' ''
+$cudaVendor  = Cfg 'localCudaVendor' ''
 $lmsCli      = Resolve-LmsCli
 $modelId     = Cfg 'localModelId' ''
 $extraArgs   = Cfg 'localExtraArgs' ''
@@ -203,6 +205,7 @@ function Start-TextModel {
   # ---- 直启 llama-server（兜底） ----
   if (-not $llamaExe) { throw '未找到 llama-server.exe，请在 config.local.json 里设置 localLlamaExe' }
   if (-not $modelPath) { throw '未配置本地模型，请在 config.local.json 里设置 localModelPath' }
+  if ($cudaVendor) { $env:Path = "$cudaVendor;$env:Path" }
   $args = @('--model', "`"$modelPath`"", '--host', '127.0.0.1', '--port', "$llamaOwnPort")
   if ($mmproj)      { $args += '--mmproj', "`"$mmproj`"" }
   if ($apiKey)      { $args += '--api-key', $apiKey }
