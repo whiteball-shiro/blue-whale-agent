@@ -1,4 +1,4 @@
-# 🐳 大肥鱼 · DeepSeek-Whale-Pet
+# 大肥鱼
 
 > 一只会悬浮在你桌面、能陪你聊天、帮你盯 API 余额、还能本地生图和处理文件的小鲸鱼。
 
@@ -8,7 +8,7 @@
 
 ---
 
-## ✨ 功能
+## 功能
 
 **基础（开箱即用，只需填一个 API Key）**
 
@@ -38,7 +38,7 @@
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
 1. 下载发布版（GitHub Releases），解压到不含中文/空格的路径。
 
@@ -52,7 +52,7 @@
 
 ---
 
-## ⚙️ 配置
+## 配置
 
 复制 `config.example.json` 为 `config.json`，按需填写。
 
@@ -70,7 +70,7 @@
 
 ---
 
-## 🖥 本地进阶（可选）
+## 本地进阶（可选）
 
 需要 Node.js 18+，以及（按需）：LM Studio + 一个支持工具调用的本地模型（默认推荐 Qwen3.5-9B）、ComfyUI（本地生图）。相关脚本在 `chat-workspace/`，路径已在 `config.example.json` 参数化，占位符请按你的机器填写。
 
@@ -87,13 +87,13 @@
 
 ---
 
-## 📁 目录
+## 目录
 
 `resources/` 桌宠主程序源码；`chat-workspace/` 本地委派/文件 MCP/生图脚本与规则；`config.example.json` 配置模板；`setup.bat` 一键安装；`docs/` 说明书（[docs/USAGE.md](docs/USAGE.md)）。
 
 ---
 
-## ⚠️ 安全与合规
+## 安全与合规
 
 - 本仓库不含任何真实密钥/个人路径（已脱敏为占位符）；你自己的 `config.json`（含 API Key/聊天记录）不要提交。
 
@@ -103,13 +103,13 @@
 
 ---
 
-## 🔒 跨平台说明
+## 跨平台说明
 
 核心桌宠（Electron）可跨平台；`chat-workspace/` 里的本地脚本（PowerShell + GPU）目前为 Windows 专属可选模块，Mac/Linux 上可直接用基础。
 
 ---
 
-## 🛠 构建 / 发布
+## 构建 / 发布
 
 **开发调试**（需要 Node.js 18+，在 `resources/` 目录执行）：
 
@@ -119,28 +119,28 @@ npm install        # 安装 Electron 等依赖
 npx electron .     # 运行桌宠
 ```
 
-  **打包成 exe**（在 `resources/` 目录执行）：
-  
-  ```bash
-  cd resources
-  npm i -D electron-builder
-  npx electron-builder --win
-  ```
-  
-  打包成功后，安装包会生成在 `resources\dist\` 目录下（文件名形如 `deepseek-whale-pet Setup <版本>.exe`），把它上传到 GitHub Release 即可。
-  
-  > 免安装绿色版在 `resources\dist\win-unpacked\`，可整套文件夹拷给朋友直接运行。
-  > 如果你只是给内网/朋友用，也可以直接复制 `resources/` 目录，用 `npx electron .` 运行，无需打包。
+**打包成 exe**（在 `resources/` 目录执行）：
+
+```bash
+cd resources
+npm i -D electron-builder
+npx electron-builder --win
+```
+
+打包成功后，安装包会生成在 `resources\dist\` 目录下（文件名形如 `deepseek-whale-pet Setup <版本>.exe`），把它上传到 GitHub Release 即可。
+
+> 免安装绿色版在 `resources\dist\win-unpacked\`，可整套文件夹拷给朋友直接运行。
+> 如果你只是给内网/朋友用，也可以直接复制 `resources/` 目录，用 `npx electron .` 运行，无需打包。
 
 ---
 
-## 🙏 致谢与来源
+## 致谢与来源
 
 本项目是开源衍生作品，遵循 MIT 许可。来源链如下：
 
 - **MeteorNOX / DeepSeek-Balance-Whale-Widget**（MIT，[仓库](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)）—— 最初的 DSH 网页余额挂件。
 - **qijiamin0822 / deepseek-whale-pet**（MIT，[仓库](https://github.com/qijiamin0822/deepseek-whale-pet)）—— 把上述挂件改造成独立桌面桌宠，也是本项目的直接基础。
-- **本仓库（大肥鱼 · DeepSeek-Whale-Pet）** —— 在前者的基础上做的泛化改造（通用 LLM、本地委派、文件 MCP、本地生图等）。
+- **本仓库（大肥鱼）** —— 在前者的基础上做的泛化改造（通用 LLM、本地委派、文件 MCP、本地生图等）。
 
 > MIT 要求衍生作品保留各上游的版权声明与许可声明，详见 [LICENSE](LICENSE)。
 
@@ -148,4 +148,4 @@ npx electron .     # 运行桌宠
 
 
 
-*使用愉快，让大肥鱼陪你~ 🐳*
+*使用愉快，让大肥鱼陪你~*
