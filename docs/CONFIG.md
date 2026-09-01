@@ -1,0 +1,179 @@
+# 配置说明
+
+「大肥鱼」的配置分两条线：
+
+1. **主配置** `%APPDATA%\deepseek-whale-pet\config.json` —— 控制桌宠本体、余额、对话来源、云端/本地接口、以及 MCP 开关。
+2. **本地进阶配置** `chat-workspace\config.local.json` —— 只有要用「本地委派 / 文件工具 / 生图」时才需要，默认全关。
+
+> 仓库里的 `config.example.json` 和 `chat-workspace\config.local.json.example` 是**脱敏模板**，把其中的 `COM:` 占位符替换成你自己的值即可。真正生效的 `config.json` / `config.local.json` 都在 `.gitignore` 里，**千万别提交**。
+
+---
+
+## 1. 三步上手（只用基础版）
+
+1. 解压程序到不含中文/空格的路径。
+2. 运行 `setup.bat`，或手动把仓库根的 `config.example.json` 复制为 `%APPDATA%\deepseek-whale-pet\config.json`。
+3. 右键小鲸鱼 → 设置 → 填入你的 **API Key**（DeepSeek 或任意兼容服务的 Key）→ 保存。打开对话（默认 `Alt+Q`），顶部选「云端」即可聊。
+
+> 基础版只需一个 Key，**无需显卡、无需本地模型**。
+
+---
+
+## 2. 主配置字段说明
+
+### 外观 / 行为
+
+| 字段 | 作用 | 默认 |
+| --- | --- | --- |
+| `label` | 鲸鱼头顶显示的文字 | 大肥鱼 |
+| `scale` | 缩放倍数 | 1 |
+| `snap` | 拖动到屏幕边缘自动吸附 | false |
+| `displayMode` | 显示模式（`all` 等） | all |
+| `alwaysOnTop` | 始终置顶 | true |
+| `clickThrough` | 鼠标穿透（点不到后面的东西） | false |
+| `clickThroughOpacity` | 穿透时的透明度 | 0.6 |
+| `idleTransparency` | 闲置时半透明 | true |
+| `idleSec` | 闲置判定秒数 | 5 |
+| `customImage` | 使用自定义形象图片 | false |
+| `bounceAnim` | 弹跳动画 | true |
+| `sound` | 提示音效 | true |
+| `mood` | 情绪表情 | true |
+| `trayIcon` | 显示托盘图标 | true |
+| `showTime` | 显示时间 | true |
+| `autoStart` | 开机自启 | false |
+| `hotkey` | 启用全局热键 | true |
+
+### 余额（DeepSeek 专属）
+
+| 字段 | 作用 | 默认 |
+| --- | --- | --- |
+| `apiKey` | DeepSeek 的 API Key，用于读取余额 | 空 |
+| `balanceUrl` | 余额接口地址，留空用 DeepSeek 默认 `https://api.deepseek.com/user/balance`。地址可改，但需返回 DeepSeek 相同结构，否则余额读不出来 | 空 |
+| `refreshSec` | 余额刷新间隔（秒） | 30 |
+| `lowBalanceAlert` | 低余额提醒 | true |
+| `lowThreshold` | 余额低于该值则提醒 | 5 |
+| `trackStats` | 记录今日消耗 | true |
+
+> 注意：余额目前按 DeepSeek 的返回格式解析，**只保证 DeepSeek 好用**；真正「不绑定」的只有聊天接口。
+
+### 对话
+
+| 字段 | 作用 | 默认 |
+| --- | --- | --- |
+| `chatHotkey` | 打开对话的快捷键 | Alt+Q |
+| `chatProvider` | 对话来源：`codex` / `local` / `llm`（云端） | codex |
+| `chatModel` | 选定的模型（Codex / 本地 / 云端，运行时自选） | 空 |
+| `chatCodexPath` | Codex CLI 路径（Codex 来源时用，留空自动探测） | 空 |
+| `chatDir` | Codex 工作目录 | 空 |
+| `chatForceVision` | 强制开启看图 | null |
+| `chatThinking` | 思考模式 | true |
+| `chatLocalRoute` | **分流开关**：把子任务委派给本地模型 | false |
+| `chatMcp` | **MCP 开关**：启用本地/扩展工具 | false |
+
+### 云端（任意 OpenAI 兼容）
+
+| 字段 | 作用 |
+| --- | --- |
+| `llmBaseUrl` | 接口地址，如 `https://api.deepseek.com/v1`、`https://api.openai.com/v1`。**留空则不启用「云端/LLM」来源** |
+| `llmApiKey` | 该接口的 API Key |
+| `llmModel` | 模型名，如 `deepseek-chat`、`gpt-4o-mini` |
+
+> 把 `chatProvider` 设为 `llm`，顶部来源就会显示「云端」，即可用上面三个字段。
+
+### 本地（不绑定某一款）
+
+| 字段 | 作用 | 默认 |
+| --- | --- | --- |
+| `localBaseUrl` | 本地推理服务地址，支持任意 OpenAI 兼容。留空用 LM Studio `http://127.0.0.1:1234/v1`；Ollama 填 `http://127.0.0.1:11434/v1` | 空 |
+| `localModelDir` | 本地模型所在目录（用于读上下文上限，防历史太长卡死；留空自动从 `localModelPath` 推导） | 空 |
+| `localModelFilter` | 挑选模型的匹配关键字 | qwen |
+| `localModelId` | 用 LM Studio 时的模型 ID | 示例 qwen3.5-9b |
+| `localModelPath` | 本地模型文件路径（gguf） | COM:QWEN_MODEL |
+| `localModelMmproj` | 多模态投影文件（识图用） | COM:QWEN_MMPROJ |
+
+> 用 LM Studio 时，模型下拉会通过 `lms ls` 列出**磁盘上全部**语言模型（自动过滤 embedding）；用其它本地服务时走 `/v1/models` 接口。
+
+### 文件 / 白名单
+
+| 字段 | 作用 |
+| --- | --- |
+| `workspaceDir` | 对话工作目录（`COM:WORKSPACE` 会自动解析） |
+| `localWhitelist` | 本地文件工具**只允许**访问的目录数组，白名单外一律拒绝 |
+
+### MCP 工具
+
+| 字段 | 作用 |
+| --- | --- |
+| `mcps` | MCP 服务器定义数组（`id`/`name`/`command`/`args`/`env`/`localReadOnly`） |
+| `mcpServersOn` | 开关对象，`key = serverId`，对应 `mcps` 里每个 `id` |
+
+内置四个示例（默认全开，但 `windows-mcp`、`playwright` 是高危，请只在信任的模型来源下开启）：
+
+- `qwen-files` —— 本地文件工具（白名单内读写、生成 docx/pdf/pptx）
+- `web-search` —— 网络搜索
+- `playwright` —— 操控浏览器
+- `windows-mcp` —— 操控 Windows
+
+---
+
+## 3. 云端聊天怎么配（示例）
+
+把 `chatProvider` 设为 `llm`，然后填：
+
+```json
+"llmBaseUrl": "https://api.deepseek.com/v1",
+"llmApiKey": "sk-你的DeepSeekKey",
+"llmModel": "deepseek-chat"
+```
+
+或用 OpenRouter：
+
+```json
+"llmBaseUrl": "https://openrouter.ai/api/v1",
+"llmApiKey": "sk-or-你的Key",
+"llmModel": "openai/gpt-4o-mini"
+```
+
+---
+
+## 4. 本地聊天怎么配
+
+1. 启动 LM Studio（或 Ollama 等），加载好一个模型。
+2. 在设置「对话与模型」里选本地服务预设（LM Studio / Ollama），或手填 `localBaseUrl`。
+3. 顶部对话来源选「本地」，模型下拉会自动读取。
+
+> LM Studio 默认端口 `1234`，Ollama 默认 `11434`，地址都以 `/v1` 结尾。
+
+---
+
+## 5. 分流 / 文件 / 生图（可选进阶）
+
+前提：先填好 `chat-workspace\config.local.json`（复制自 `.example`）。
+
+| 功能 | 对应配置 | 干什么 |
+| --- | --- | --- |
+| 分流（省额度） | `chatLocalRoute: true` | 把翻译/总结/生成文档等子任务委派给本地模型 |
+| 文件工具 | `chatMcp: true` + `mcps` 里的 `qwen-files` | 在白名单目录读写、生成 docx/pdf/pptx |
+| 扩展 MCP | `chatMcp: true` + `web-search` / `playwright` / `windows-mcp` | 网络搜索 / 浏览器 / 系统 |
+| 生图 | `comfyPy` / `comfyDir` / `comfyCli` | 调用 ComfyUI 本地生图 |
+
+`config.local.json` 关键字段：`llmBaseUrl`（本地地址）、`localModelPath`、`localWhitelist`（白名单）、`lmStudioExe`（LM Studio 路径）、`lmsCli`（`lms.exe` 路径）、`comfyPy`/`comfyDir`/`comfyCli`（ComfyUI）。
+
+---
+
+## 6. COM: 占位符
+
+模板里用 `COM:xxx` 代表「这里要填你的值」。规则：
+
+- **自动解析，不用改**：`COM:WORKSPACE`（对话工作目录）、`COM:USERHOME`（用户主目录，如 `COM:USERHOME\Documents`）。这两类在聊天脚本里会被替换成真实目录。
+- **必须自己替换**：其余 `COM:xxx` —— 如 `COM:QWEN_MODEL`、`COM:NODE_BIN`、`COM:UVX_BIN`、`COM:WEB_SEARCH_MCP`、`COM:CHAT_WORKSPACE`、`COM:LM_STUDIO_EXE`、`COM:LMS_CLI`、`COM:COMFY_PY` / `COM:COMFY_DIR` / `COM:COMFY_CLI`、`COM:LOCAL_BASE_URL`、`COM:LOCAL_MODEL_DIR` / `COM:LOCAL_MODEL_PATH` / `COM:LOCAL_MODEL_MMPROJ` —— 都是让你填真实路径/地址的标记（主程序不会自动解析）。
+
+---
+
+## 7. 常见问题
+
+- **余额读不到？** 确认 `apiKey` 是 DeepSeek 的 Key，`balanceUrl` 走 DeepSeek 默认接口；余额按 DeepSeek 格式解析。
+- **对话卡顿 / 超时？** 本地模型上下文别设太长；大文件先压缩；填对 `localModelDir` 以读取上下文上限。
+- **文件读不了？** 目录不在 `localWhitelist` 里，把它加进去即可。
+- **MCP 不工作？** 检查 `chatMcp: true` 与 `mcpServersOn` 里对应开关，以及 `COM:` 占位符是否替换成真实路径。
+- **找不到本地模型？** 确认本地服务已启动、模型已加载；LM Studio 走 `lms ls`，其它走 `/v1/models`。

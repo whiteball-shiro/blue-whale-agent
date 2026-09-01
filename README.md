@@ -54,6 +54,8 @@
 
 ## 配置
 
+> 配置字段的完整说明见 [docs/CONFIG.md](docs/CONFIG.md)，这里只列要点。
+
 复制 `config.example.json` 为 `config.json`，按需填写。
 
 - **通用 LLM**：填 `llmBaseUrl + llmApiKey + llmModel` 即可接任意 OpenAI 兼容服务，不限于 DeepSeek。
@@ -91,7 +93,7 @@
 
 ## 目录
 
-`resources/` 桌宠主程序源码；`chat-workspace/` 本地委派/文件 MCP/生图脚本与规则；`config.example.json` 配置模板；`setup.bat` 一键安装；`docs/` 说明书（[docs/USAGE.md](docs/USAGE.md)）。
+`resources/` 桌宠主程序源码；`chat-workspace/` 本地委派/文件 MCP/生图脚本与规则；`config.example.json` 配置模板；`setup.bat` 一键安装；`docs/` 说明书（[docs/USAGE.md](docs/USAGE.md) · [docs/CONFIG.md](docs/CONFIG.md)）。
 
 ---
 
