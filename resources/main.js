@@ -1097,9 +1097,9 @@ async function lmStreamChat(messages, useModel, toolsPayload, onDelta, opts) {
 }
 
 // ---------------------------------------------------------------------------
-// Codex 模式本地分流：判断任务是否“力所能及”地交给本地 qwen3.5-9b
+// Codex 模式本地分流：判断任务是否“力所能及”地交给本地模型
 // ---------------------------------------------------------------------------
-// 选择本地模型：优先 qwen3.5-9b，其次任意 Qwen（readLmModels 已过滤 embedding）
+// 选择本地模型：挑一个可用的本地模型（readLmModels 已过滤 embedding）
 async function pickLocalModel() {
   try {
     const lms = await readLmModels()
@@ -1119,7 +1119,7 @@ async function lmClassify(msg) {
   if (!model) return false
   // 分类请求本身也要在上下文安全预算内，超了直接判给 Codex，避免把本地模型挤爆
   const sys = '你是一个任务路由器。判断标准：仅凭文本回复（不需要文件操作、终端命令、网页、数据库、截图、系统控制等任何工具）就能高质量完成的任务，判为本地可完成；需要工具或超出你能力范围的任务，判为需要云端智能体。'
-  const usr = '用户请求：\n' + String(msg).slice(0, 2000) + '\n\n只输出一个 JSON 对象：{"local":true} 表示你（本地 9B）能直接高质量完成，{"local":false} 表示需要云端智能体。不要输出任何其它内容。'
+  const usr = '用户请求：\n' + String(msg).slice(0, 2000) + '\n\n只输出一个 JSON 对象：{"local":true} 表示你（本地模型）能直接高质量完成，{"local":false} 表示需要云端智能体。不要输出任何其它内容。'
   const maxCtx = getLmMaxCtx(model) || 6144
   if (estimateTokens(sys) + estimateTokens(usr) + 200 > maxCtx - 900) return false
   try {
@@ -1169,7 +1169,7 @@ async function lmClassifyWithTools(msg, toolNames) {
     '。判断标准：仅凭文本回复、或通过一次简单的只读/查询类工具调用（例如查一条数据、列目录、读一个小文件、查表结构）就能高质量完成的任务，判为本地可完成；' +
     '需要多步复杂推理、写/删/改数据或文件、联网、系统操作，或超出工具范围的任务，判为需要云端智能体。'
   const usr = '用户请求：\n' + String(msg).slice(0, 2000) +
-    '\n\n只输出一个 JSON 对象：{"local":true} 表示你（本地 9B）能直接或借助上面某个工具完成，{"local":false} 表示需要云端智能体。不要输出任何其它内容。'
+    '\n\n只输出一个 JSON 对象：{"local":true} 表示你（本地模型）能直接或借助上面某个工具完成，{"local":false} 表示需要云端智能体。不要输出任何其它内容。'
   const maxCtx = getLmMaxCtx(model) || 6144
   if (estimateTokens(sys) + estimateTokens(usr) + 200 > maxCtx - 900) return false
   try {
@@ -1196,11 +1196,11 @@ async function lmClassifyWithTools(msg, toolNames) {
 }
 
 // 交给 Codex 跑时附带的本地委派提示：让它把纯文本子任务顺手交给本地模型
-const LOCAL_DELEGATE_HINT = '[本地委派提示] 当前任务里，如果有一些子任务你判断仅凭文本就能高质量完成（例如：翻译、总结、解释概念、润色文案、简短问答、生成一段代码片段），请优先调用本地 qwen3.5-9b 完成，以节省云端额度。调用方式：node local-qwen.mjs "子任务描述"（该脚本就在聊天工作目录，直接运行，不需要联网/额外权限）。注意：本地模型上下文很小（llama-server 的 --ctx-size，当前约 4096 token），脚本会先估算输入并拒绝超长内容，所以只委派简短子任务。简单的文件写/删/改也可以委派：让本地模型直接生成新的文件内容、替换片段、删除方案或对应命令/代码，再由你执行；终端执行、网页、系统级安装卸载等复杂操作不要整段委派。如果本地模型调用失败或返回错误，也由你自己完成该子任务。'
+const LOCAL_DELEGATE_HINT = '[本地委派提示] 当前任务里，如果有一些子任务你判断仅凭文本就能高质量完成（例如：翻译、总结、解释概念、润色文案、简短问答、生成一段代码片段），请优先调用本地模型完成，以节省云端额度。调用方式：node local-qwen.mjs "子任务描述"（该脚本就在聊天工作目录，直接运行，不需要联网/额外权限）。注意：本地模型上下文较小（取决于 llama-server 的 --ctx-size），脚本会先估算输入并拒绝超长内容，所以只委派简短子任务。简单的文件写/删/改也可以委派：让本地模型直接生成新的文件内容、替换片段、删除方案或对应命令/代码，再由你执行；终端执行、网页、系统级安装卸载等复杂操作不要整段委派。如果本地模型调用失败或返回错误，也由你自己完成该子任务。'
 
 // 本地委派助手脚本（Codex 用 `node local-qwen.mjs "问题"` 调用，参数沿用现有本地设置）
 const LOCAL_QWEN_SCRIPT = `#!/usr/bin/env node
-// 本地 qwen3.5-9b 委派助手：供 Codex 模式下的智能体调用。
+// 本地委派助手：供 Codex 模式下的智能体调用。
 // 参数沿用现有本地设置：temperature 0.5 / max_tokens 2048 / 不思考（reasoning_effort: none）
 // 委派前先估算输入 token，超出 llama-server 上下文安全预算会直接拒绝，避免把本地模型卡死。
 import { execFileSync } from 'node:child_process'
@@ -1553,7 +1553,7 @@ function codexMcpOverrides() {
 }
 
 // 通用 OpenAI 兼容 LLM（可选来源）：直接调用配置的 base_url + key + model，流式返回
-// 云端 API 来源的系统人设：与本地 qwen / Codex 的 AGENTS.md 保持一致的“大肥鱼 + 呆萌”
+// 云端 API 来源的系统人设：与本地模型 / Codex 的 AGENTS.md 保持一致的“大肥鱼 + 呆萌”
 const LLM_SYSTEM_PROMPT = '你是桌宠「大肥鱼」，性格呆萌可爱、有点憨，回答要直接、简洁、口语化，**尽量少用表情符号/emoji**。不要使用任何未提供的工具。'
 async function runLlm(conv, model, imagePath, onDelta, onDone, onStatus) {
   const cfg = loadConfig()
