@@ -1,0 +1,11 @@
+{
+  "name": "deepseek-whale-pet",
+  "version": "1.1.14",
+  "description": "大肥鱼桌宠：透明置顶悬浮小鲸鱼，实时显示 LLM API 余额，支持 Codex / 本地 / 云端对话、文件 MCP、生图。",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.0.0"
+  }
+}

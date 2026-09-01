@@ -1,0 +1,39 @@
+# 个人配置与数据（含 API Key / 数据库凭据 / 聊天记录，切勿提交）
+config.json
+conversations.json
+history.json
+*.local.json
+config.local.json
+chat-workspace/*.png
+chat-workspace/*.jpg
+screenshot*.png
+screen-*.png
+clip-*.jpg
+pdfpage-*.jpg
+
+# 构建产物 / 依赖
+node_modules/
+.npm/
+resources/app.asar*
+resources/unpacked/
+7z-setup.exe
+*.asar
+dist/
+build/
+
+# 系统 / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# 运行期
+chat-workspace/attach-debug.log
+
+# Python 字节码缓存
+__pycache__/
+*.pyc
+
+# 本地备份（勿提交）
+_precheck-bak/

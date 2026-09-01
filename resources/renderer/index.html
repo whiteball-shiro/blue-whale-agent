@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:;" />
+<title>DeepSeek 余额桌宠</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: transparent; overflow: hidden;
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    user-select: none; -webkit-user-select: none;
+  }
+  .dshp-root {
+    position: fixed; inset: 0;
+    cursor: grab; touch-action: none;
+    --dshp-u: calc(100vw / 1026);
+  }
+  .dshp-root.dshp-left { transform: scaleX(-1); }
+  .dshp-root.dshp-dragging { cursor: grabbing; }
+  .dshp-body {
+    position: absolute; inset: 0;
+    transform-origin: 50% 100%;
+    transition: transform .22s cubic-bezier(.34,1.56,.64,1);
+  }
+  .dshp-body.dshp-bounce {
+    animation: dshpBounce .5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes dshpBounce {
+    0% { transform: scale(1,1) translateY(0); }
+    35% { transform: scale(.94,1.12) translateY(-4%); }
+    70% { transform: scale(1.04,.94) translateY(2%); }
+    100% { transform: scale(1,1) translateY(0); }
+  }
+  .dshp-img { width: 100%; height: 100%; display: block; pointer-events: none; -webkit-user-drag: none; user-select: none; }
+  .dshp-text {
+    position: absolute; left: 44.346%; top: 25.5%;
+    transform: translate(-50%,-50%);
+    text-align: center; color: #536ba9; line-height: 1.18;
+    white-space: nowrap; pointer-events: none;
+  }
+  .dshp-root.dshp-left .dshp-text { transform: translate(-50%,-50%) scaleX(-1); }
+  .dshp-label { font-size: calc(var(--dshp-u) * 68); font-weight: 600; letter-spacing: .06em; }
+  .dshp-amount { font-size: calc(var(--dshp-u) * 119); font-weight: 800; line-height: 1.05; }
+  .dshp-amount.dshp-low { color: #d25450; }
+  .dshp-hint  { font-size: calc(var(--dshp-u) * 54); color: #9fb0d9; letter-spacing: .02em; }
+  .dshp-time  { font-size: calc(var(--dshp-u) * 44); color: #9fb0d9; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+  .dshp-mood {
+    position: absolute; left: 72%; top: 6%;
+    font-size: calc(var(--dshp-u) * 120); pointer-events: none;
+    display: none;
+  }
+  .dshp-root.dshp-left .dshp-mood { transform: scaleX(-1); }
+
+  .dshp-size { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s ease; z-index: 3; }
+  .dshp-root:hover .dshp-size { opacity: 1; }
+  .dshp-size button {
+    width: 22px; height: 22px; border: none; border-radius: 50%;
+    background: rgba(83,107,169,.85); color: #fff; font-size: 14px; line-height: 1;
+    padding: 0; cursor: pointer; user-select: none;
+  }
+  .dshp-size button:hover { background: #536ba9; }
+
+  .dshp-menu {
+    position: fixed; z-index: 99; min-width: 150px; padding: 5px 0;
+    background: #ffffff; color: #2b3350;
+    border: 1px solid rgba(83,107,169,.45); border-radius: 10px;
+    box-shadow: 0 8px 26px rgba(0,0,0,.22);
+    font-size: 13px; display: none;
+  }
+  .dshp-menu.dshp-open { display: block; }
+  .dshp-menu div { padding: 7px 16px; cursor: pointer; }
+  .dshp-menu div:hover { background: #eef2fb; }
+  .dshp-menu .sep { height: 1px; background: #e3e7f2; margin: 4px 0; padding: 0; cursor: default; }
+  .dshp-menu .sep:hover { background: #e3e7f2; }
+  .dshp-menu .dshp-menu-info { cursor: default; color: #7c86a3; font-size: 12px; }
+  .dshp-menu .dshp-menu-info:hover { background: transparent; }
+  .dshp-menu div[data-act="quit"] { color: #c0392b; }
+  .dshp-menu div[data-act="quit"]:hover { background: #fdeaea; }
+
+</style>
+</head>
+<body>
+  <div class="dshp-root" id="root">
+    <div class="dshp-body" id="body">
+      <img class="dshp-img" id="img" src="../assets/DSniang02.png" alt="DeepSeek 余额" draggable="false" />
+      <div class="dshp-mood" id="moodEl"></div>
+      <div class="dshp-size" id="sizeBox">
+        <button type="button" id="minusBtn" title="缩小">−</button>
+        <button type="button" id="plusBtn" title="放大">+</button>
+      </div>
+      <div class="dshp-text" id="textBox">
+        <div class="dshp-label" id="labelEl">DeepSeek 余额</div>
+        <div class="dshp-amount" id="amountEl">--</div>
+        <div class="dshp-hint" id="hintEl">加载中…</div>
+        <div class="dshp-time" id="timeEl"></div>
+      </div>
+    </div>
+  </div>
+  <div class="dshp-menu" id="menu">
+    <div data-act="refresh">🔄 立即刷新</div>
+    <div class="dshp-menu-info" id="menuStats" data-act="none">今日消耗：--</div>
+    <div data-act="chat">💬 对话…</div>
+    <div data-act="settings">⚙️ 设置…</div>
+    <div class="sep"></div>
+    <div data-act="quit">✕ 退出</div>
+  </div>
+  <script src="pet.js"></script>
+</body>
+</html>

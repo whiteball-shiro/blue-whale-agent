@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';" />
+<title>DeepSeek 余额桌宠 · 对话</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; background: transparent; overflow: hidden; }
+  .card { position: fixed; top: 6px; right: 6px; bottom: 6px; left: 38px; display: flex; flex-direction: column; background: rgba(255,255,255,.98);
+    border: 1px solid rgba(83,107,169,.35); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.22); overflow: hidden; }
+  .card.drop { border-color: #536ba9; box-shadow: 0 0 0 2px rgba(83,107,169,.35), 0 10px 30px rgba(0,0,0,.22); }
+  .head { display: flex; align-items: center; justify-content: flex-start; gap: 7px; padding: 8px 10px; border-bottom: 1px solid #e6ebf7; background: #eef2fb; }
+  .prov { display: inline-flex; border: 1px solid #ccd4ea; border-radius: 8px; overflow: hidden; flex: 0 0 auto; }
+  .provbtn { border: none; background: #fff; color: #536ba9; font-size: 12px; padding: 6px 9px; cursor: pointer; }
+  .provbtn.on { background: #536ba9; color: #fff; }
+  .headbtn { border: none; background: rgba(83,107,169,.10); cursor: pointer; color: #536ba9; width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; padding: 0; }
+  .headbtn:hover { background: rgba(83,107,169,.22); }
+  .model { border: 1px solid #ccd4ea; border-radius: 8px; font-size: 12px; color: #333; background: #fff; padding: 3px 8px; height: 30px; cursor: pointer; flex: 1 1 auto; min-width: 0; }
+  .modelbar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-top: 1px solid #f0f3fb; background: #fbfcfe; }
+  .modelbar-label { font-size: 11px; color: #9aa3bd; flex: 0 0 auto; }
+  .modelbar .model { flex: 1 1 auto; height: 30px; }
+  .lookbtn { border: 1px solid #ccd4ea; border-radius: 8px; font-size: 13px; color: #536ba9; background: #fff; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+  .lookbtn.on { background: #536ba9; color: #fff; border-color: #536ba9; }
+  .ctxbadge { flex: 0 0 auto; font-size: 11px; color: #536ba9; background: rgba(83,107,169,.10); border-radius: 6px; padding: 3px 6px; white-space: nowrap; }
+  .ctxbar { display: flex; justify-content: flex-end; align-items: center; padding: 2px 10px 0; }
+  .thinkbtn { border: 1px solid #ccd4ea; border-radius: 8px; font-size: 11px; color: #536ba9; background: #fff; padding: 3px 8px; cursor: pointer; }
+  .thinkbtn.on { background: #536ba9; color: #fff; border-color: #536ba9; }
+  .toolstrip { position: fixed; top: 46px; left: 4px; bottom: 120px; width: 34px; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 4px 0; background: rgba(238,242,251,.72); border: 1px solid #e0e6f5; border-radius: 10px; z-index: 20; }
+  .ts-head { width: 28px; height: 28px; border-radius: 8px; background: #536ba9; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+  .ts-head.off { background: #c3cbdf; }
+  .ts-list { flex: 1; overflow-y: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 2px 0; }
+  .ts-tool { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; border: 1px solid #ccd4ea; background: #fff; color: #536ba9; }
+  .ts-tool.on { background: #536ba9; color: #fff; border-color: #536ba9; }
+  .ts-hint { font-size: 10px; color: #9aa3bd; text-align: center; padding: 2px; line-height: 1.4; }
+  .head button:hover { background: #dfe7f7; }
+  .msgs { flex: 1 1 auto; overflow-y: auto; padding: 10px 12px 10px 10px; margin-right: 0; }
+  .screenPreview { display: none; width: 100%; max-height: 130px; object-fit: contain; border: 1px solid #dbe2f2; border-radius: 10px; margin-bottom: 8px; background: #f6f8fd; }
+  .row { display: flex; margin-bottom: 8px; }
+  .row.user { justify-content: flex-end; }
+  .bubble { max-width: 82%; padding: 7px 10px; border-radius: 12px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .row.user .bubble { background: #536ba9; color: #fff; border-bottom-right-radius: 4px; }
+  .row.bot .bubble { background: #f3f6fd; color: #2b3350; border: 1px solid #e5eaf6; border-bottom-left-radius: 4px; }
+  .row.error .bubble { background: #fdeaea; color: #b33; border-color: #f2c9c9; }
+  .row.warn .bubble { background: #fff7e6; color: #9a6b00; border-color: #f2ddb0; }
+  .typing { color: #9aa3bd; font-size: 11px; padding-left: 4px; }
+  .input { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid #e6ebf7; background: #fff; }
+  .attachbtn { flex: 0 0 auto; width: 34px; height: 38px; border: 1px solid #ccd4ea; border-radius: 10px; background: #fff; color: #536ba9; font-size: 16px; cursor: pointer; }
+  .attachbtn:hover { background: #eef2fb; }
+  .attach-chip { display: none; padding: 4px 10px; font-size: 11px; color: #536ba9; background: #eef2fb; border-top: 1px solid #e6ebf7; }
+  .attach-chip.show { display: block; }
+  .attach-chip button { border: none; background: rgba(83,107,169,.15); color: #536ba9; border-radius: 5px; padding: 1px 6px; margin-left: 6px; cursor: pointer; }
+  .input textarea { flex: 1 1 auto; border: 1px solid #ccd4ea; border-radius: 10px; padding: 8px 10px; font-size: 13px; font-family: inherit; outline: none; resize: none; min-height: 36px; }
+  .input textarea:focus { border-color: #536ba9; }
+  .input button { background: #536ba9; color: #fff; border: none; border-radius: 10px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600; }
+  .input button:disabled { background: #b7c0d8; cursor: default; }
+  .input button#stopBtn { background: #c0392b; }
+  .history { position: absolute; inset: 0; display: none; flex-direction: column; background: rgba(246,248,253,.98); z-index: 10; }
+  .history.open { display: flex; }
+  .history .hhead { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #e6ebf7; }
+  .history .hhead span { flex: 1; font-size: 13px; font-weight: 600; color: #536ba9; }
+  .history .hhead button { border: none; background: rgba(83,107,169,.12); color: #536ba9; cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; }
+  .hlist { flex: 1; overflow-y: auto; padding: 6px 8px; }
+  .hitem { padding: 7px 9px; border-radius: 8px; cursor: pointer; color: #333; font-size: 13px; margin-bottom: 3px; position: relative; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hitem:hover { background: #dfe7f7; }
+  .hitem.active { background: #d7e0f5; font-weight: 600; }
+  .hitem .acts { display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); gap: 5px; }
+  .hitem:hover .acts { display: inline-flex; }
+  .hitem .acts button { border: none; background: rgba(83,107,169,.18); cursor: pointer; color: #536ba9; border-radius: 5px; padding: 2px 5px; font-size: 11px; }
+  .hempty { font-size: 12px; color: #9aa3bd; text-align: center; margin-top: 16px; }
+  .gpubar { display: flex; align-items: center; gap: 12px; padding: 3px 10px; border-top: 1px solid #eef2fb; background: #fafbfe; font-size: 11px; color: #66708c; flex-wrap: wrap; }
+  .gpu-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .dot.on { background: #3bb273; box-shadow: 0 0 0 2px rgba(59,178,115,.18); }
+  .dot.off { background: #c3cbdf; }
+  .gpubar.warn { background: #fff3f3; border-top-color: #f2c1c1; color: #b33; }
+  .gpubar.warn .gpu-item { font-weight: 600; }</style>
+</head>
+<body>
+  <div id="toolStrip" class="toolstrip">
+    <div class="ts-head" id="mcpToggle" title="本地模型使用 MCP 工具（方案2）：开/关">🧩</div>
+    <div class="ts-list" id="toolList"></div>
+    <div class="ts-hint" id="mcpHint">点上方开启</div>
+  </div>
+  <div class="card">
+    <div class="head">
+      <div class="prov">
+        <button id="provCodex" class="provbtn" title="Codex：用 Codex 引擎，能深度干活、审代码、管理多步任务（需要装 Codex 的玩家）">Codex</button>
+        <button id="provLms" class="provbtn" title="本地：用你自己电脑的模型，免费省额度（需要本地 LM Studio）">本地</button>
+        <button id="provLlm" class="provbtn" title="云端：用云端 API，填一个 Key 就能聊，最省事">云端</button>
+      </div>
+      <button id="routeBtn" class="provbtn" title="本地分流：Codex/云端来源下，把简单/文本任务及一次简单的只读/查询调用优先交给本地模型省额度；系统/网络等复杂任务及危险操作仍由当前来源自己处理">⚡分流</button>
+      <button id="lookBtn" class="lookbtn" title="实时共享屏幕：开启后显示实时画面，发消息会附上当前屏幕截图（建议配合视觉模型）">📷</button>
+      <button id="visionBtn" class="lookbtn" title="支持看图：开启后把图片/截图作为多模态内容发给所选模型（用于 qwen3.5 等视觉模型）">👁</button>
+      <button id="historyBtn" class="headbtn" title="历史会话">🗂</button>
+      <button id="closeBtn" class="headbtn" title="关闭对话">✕</button>
+    </div>
+    <div class="msgs" id="msgsEl"></div>
+    <img id="screenPreview" class="screenPreview" alt="" />
+    <div id="attachChip" class="attach-chip"></div>
+    <div id="ctxBar" class="ctxbar">
+      <button id="thinkBtn" class="thinkbtn" title="思考模式：开=模型先推理再回答（更聪明但慢）；关=直接回答（更快）。仅对本地模型生效。">🧠 思考：开</button>
+      <span id="ctxBadge" class="ctxbadge" title="剩余上下文 token"></span>
+    </div>
+    <div id="gpuBar" class="gpubar" title="本地显存占用">
+      <span class="gpu-item" id="gpuVramLabel">显存：--</span>
+    </div>
+    <div class="modelbar">
+      <span class="modelbar-label">模型</span>
+      <select id="modelEl" class="model" title="选择回复模型"></select>
+    </div>
+    <div class="input">
+      <button id="attachBtn" class="attachbtn" title="附带图片/文件">📎</button>
+      <button id="clipBtn" class="attachbtn" title="识别剪贴板里的图片（QQ/微信截图等）">📋</button>
+      <textarea id="inputEl" placeholder="和它聊聊…" rows="1"></textarea>
+      <button id="stopBtn" style="display:none" title="停止当前回复">⏹ 停止</button>
+      <button id="sendBtn">发送</button>
+    </div>
+    <div class="history" id="historyEl">
+      <div class="hhead">
+        <button id="backBtn" title="返回对话">←</button>
+        <span>消息记录</span>
+        <button id="newBtn">＋新建</button>
+        <button id="archivedToggle">已归档 ▾</button>
+        <button id="histCloseBtn" title="关闭对话">✕</button>
+      </div>
+      <div class="hlist" id="listEl"></div>
+    </div>
+  </div>
+  <script src="chatwindow.js"></script>
+</body>
+</html>

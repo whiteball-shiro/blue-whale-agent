@@ -1,0 +1,59 @@
+{
+  "$comment": "把本文件复制为 config.json，并按需填写。只含占位符，不含任何真实密钥。",
+  "apiKey": "",
+  "balanceUrl": "",
+  "label": "大肥鱼",
+  "refreshSec": 30,
+  "scale": 1,
+  "snap": false,
+  "lowBalanceAlert": true,
+  "lowThreshold": 5,
+  "autoStart": false,
+  "idleTransparency": true,
+  "idleSec": 5,
+  "trackStats": true,
+  "mood": true,
+  "bounceAnim": true,
+  "sound": true,
+  "quotesEnabled": false,
+  "customImage": false,
+  "hotkey": true,
+  "trayIcon": true,
+  "showTime": true,
+  "displayMode": "all",
+  "alwaysOnTop": true,
+  "clickThrough": false,
+  "clickThroughOpacity": 0.6,
+  "chatHotkey": "Alt+Q",
+  "chatCodexPath": "",
+  "chatDir": "",
+  "chatModel": "",
+  "lookScreen": false,
+
+  "chatProvider": "codex",
+  "chatForceVision": null,
+  "chatThinking": true,
+  "chatLocalRoute": false,
+  "chatMcp": false,
+  "mcps": [
+    { "id": "qwen-files", "name": "本地文件工具", "command": "node", "args": ["COM:CHAT_WORKSPACE/_qwen_mcp_server.mjs"], "env": {}, "localReadOnly": false }
+    ,{ "id": "web-search", "name": "网络搜索", "command": "COM:NODE_BIN", "args": ["COM:WEB_SEARCH_MCP"], "env": {}, "localReadOnly": false }
+    ,{ "id": "playwright", "name": "浏览器", "command": "npx", "args": ["@playwright/mcp@latest"], "env": {}, "localReadOnly": false }
+    ,{ "id": "windows-mcp", "name": "Windows 操控", "command": "COM:UVX_BIN", "args": ["windows-mcp", "serve"], "env": {}, "localReadOnly": false }
+  ],
+  "mcpServersOn": { "qwen-files": true, "web-search": true, "playwright": true, "windows-mcp": true },
+
+  "llmBaseUrl": "",
+  "llmApiKey": "",
+  "llmModel": "",
+  "localBaseUrl": "",
+
+  "localModelDir": "",
+  "localModelFilter": "qwen",
+  "localModelId": "ai model/ai models/qwen3.5-9b-q4_k_m.gguf",
+  "localModelPath": "COM:QWEN_MODEL",
+  "localModelMmproj": "COM:QWEN_MMPROJ",
+
+  "workspaceDir": "COM:WORKSPACE",
+  "localWhitelist": ["COM:WORKSPACE", "COM:USERHOME\\Documents", "COM:USERHOME\\Desktop"]
+}

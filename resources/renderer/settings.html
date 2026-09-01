@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';" />
+<title>DeepSeek 余额桌宠 · 设置</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: "Microsoft YaHei", system-ui, sans-serif; margin: 0; padding: 18px 24px; background: #f7f9fe; color: #333; overflow: hidden; }
+  h1 { font-size: 16px; margin: 0 0 2px; color: #536ba9; }
+  p.desc { font-size: 12px; color: #888; margin: 0 0 14px; line-height: 1.6; }
+  .scroll { max-height: calc(100vh - 190px); overflow-y: auto; padding-right: 8px; }
+  .group { margin: 0 0 16px; }
+  .group h2 {
+    font-size: 12px; color: #536ba9; font-weight: 700; letter-spacing: .04em;
+    border-bottom: 1px solid #dde3f2; padding-bottom: 5px; margin: 14px 0 10px;
+  }
+  label.field { display: block; font-size: 13px; margin-bottom: 5px; color: #555; }
+  input[type=password], input[type=text], input[type=number], textarea {
+    width: 100%; box-sizing: border-box; padding: 8px 11px; border: 1px solid #ccd4ea;
+    border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 10px;
+  }
+  textarea { min-height: 54px; resize: vertical; font-family: inherit; }
+  input:focus, textarea:focus { border-color: #536ba9; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .row2 { display: flex; gap: 10px; align-items: center; }
+  .row2 input[type=number] { width: 90px; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 3px 0 9px; cursor: pointer; }
+  .check input { width: 15px; height: 15px; cursor: pointer; flex: 0 0 auto; }
+  .check span { font-size: 13px; color: #444; }
+  .check .sub { font-size: 11px; color: #9aa3bd; margin-left: 4px; }
+  .radio-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .radio { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #444; }
+  .radio input { width: 14px; height: 14px; cursor: pointer; }
+  .tip { font-size: 11px; color: #9aa3bd; margin: -4px 0 12px; line-height: 1.5; }
+  .btns { display: flex; gap: 10px; margin-top: 6px; }
+  button { padding: 9px 18px; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  #saveBtn { background: #536ba9; color: #fff; }
+  #saveBtn:hover { background: #44609f; }
+  #testBtn { background: #eef2fb; color: #536ba9; }
+  #testBtn:hover { background: #e2e9f8; }
+  #imageBtn { background: #fff; color: #536ba9; border: 1px solid #ccd4ea; padding: 6px 12px; }
+  #imageBtn:hover { background: #eef2fb; }
+  #status { font-size: 12px; margin-top: 10px; min-height: 15px; line-height: 1.5; word-break: break-all; }
+  .ok { color: #2e8b57; }
+  .err { color: #c0392b; }
+  .muted { color: #999; }
+</style>
+</head>
+<body>
+  <h1>DeepSeek 余额桌宠</h1>
+  <p class="desc">API Key 只保存在本机。所有功能均可随时开关。</p>
+
+  <div class="scroll">
+    <div class="group">
+      <h2>账户</h2>
+      <label class="field" for="keyInput">API Key</label>
+      <input type="password" id="keyInput" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+
+      <label class="field" for="labelInput">余额名称</label>
+      <input type="text" id="labelInput" placeholder="DeepSeek 余额" autocomplete="off" spellcheck="false" />
+
+      <label class="field" for="urlInput">余额接口地址（可选）</label>
+      <input type="text" id="urlInput" placeholder="https://api.deepseek.com/user/balance" autocomplete="off" spellcheck="false" />
+      <div class="tip">官方 DeepSeek 留空即可；第三方兼容服务填它的余额接口地址。</div>
+
+      <label class="field" for="refreshInput">自动刷新间隔（秒）</label>
+      <input type="number" id="refreshInput" min="0" max="3600" step="1" placeholder="30" />
+      <div class="tip">每多少秒自动刷新余额，默认 30；填 0 关闭自动刷新。</div>
+    </div>
+
+    <div class="group">
+      <h2>对话与模型</h2>
+      <label class="field" for="chatProviderInput">默认对话来源</label>
+      <select id="chatProviderInput" style="width:100%;padding:8px 11px;border:1px solid #ccd4ea;border-radius:8px;font-size:13px;margin-bottom:10px;">
+        <option value="codex">Codex（需装 Codex，可深度干活/审代码）</option>
+        <option value="lmstudio">本地（用你自己电脑的模型，免费省额度）</option>
+        <option value="llm">云端（填下面 API 即可聊）</option>
+      </select>
+      <div class="tip">打开对话框时默认用的来源，可在对话里随时切换。</div>
+
+      <label class="field" for="llmBaseUrlInput">云端 API 地址</label>
+      <input type="text" id="llmBaseUrlInput" placeholder="https://api.deepseek.com/v1" autocomplete="off" spellcheck="false" />
+      <div class="tip">任意 OpenAI 兼容接口；DeepSeek / OpenRouter / SiliconFlow 等均可。留空则云端来源不可用。</div>
+
+      <label class="field" for="llmApiKeyInput">云端 API Key</label>
+      <input type="password" id="llmApiKeyInput" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+      <label class="field" for="llmModelInput">云端模型名</label>
+      <input type="text" id="llmModelInput" placeholder="deepseek-chat" autocomplete="off" spellcheck="false" />
+
+      <label class="field" for="localBaseUrlInput">本地服务地址</label>
+      <select id="localPresetInput" style="width:100%;padding:8px 11px;border:1px solid #ccd4ea;border-radius:8px;font-size:13px;margin-bottom:8px;">
+        <option value="">选择本地服务（自动填地址）…</option>
+        <option value="http://127.0.0.1:1234/v1">LM Studio（默认，端口 1234）</option>
+        <option value="http://127.0.0.1:11434/v1">Ollama（端口 11434）</option>
+        <option value="http://127.0.0.1:8080/v1">llama.cpp / vLLM（端口 8080）</option>
+        <option value="__custom__">自定义地址（手填）…</option>
+      </select>
+      <input type="text" id="localBaseUrlInput" placeholder="http://127.0.0.1:1234/v1" autocomplete="off" spellcheck="false" />
+      <div class="tip">「本地」来源连接的就是一个 OpenAI 兼容接口——LM Studio、Ollama、llama.cpp、vLLM、LocalAI 等只要提供 /v1 接口都行。选上方预设即自动填地址，或直接手填；留空用 LM Studio 默认（1234）。</div>
+    </div>
+
+    <div class="group">
+      <h2>提醒与统计</h2>
+      <label class="check">
+        <input type="checkbox" id="lowAlertInput" checked />
+        <span>低余额提醒</span>
+        <span class="sub">余额低于阈值时弹通知</span>
+      </label>
+      <div class="row2">
+        <label class="field" for="lowThresholdInput" style="margin:0;">阈值</label>
+        <input type="number" id="lowThresholdInput" min="0" step="1" value="5" />
+      </div>
+      <div class="tip" style="margin-top:2px;">余额低于这个数值（默认 ¥5）时提醒。</div>
+
+      <label class="check">
+        <input type="checkbox" id="trackStatsInput" checked />
+        <span>记录今日消耗</span>
+        <span class="sub">右键菜单显示今日消耗金额</span>
+      </label>
+    </div>
+
+    <div class="group">
+      <h2>外观与体验</h2>
+      <label class="check">
+        <input type="checkbox" id="moodInput" checked />
+        <span>情绪表情</span>
+        <span class="sub">余额涨跌/偏低时显示 😊😢😰</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="showTimeInput" checked />
+        <span>显示时间</span>
+        <span class="sub">气泡里显示当前时间（HH:MM）</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="bounceInput" checked />
+        <span>余额变动弹跳</span>
+        <span class="sub">余额变化时小鲸鱼跳一下</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="soundInput" checked />
+        <span>提示音效</span>
+        <span class="sub">余额变化/低余额时播放轻提示音</span>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="idleInput" checked />
+        <span>闲置半透明</span>
+        <span class="sub">一段时间无操作后变淡</span>
+      </label>
+      <div class="row2">
+        <label class="field" for="idleSecInput" style="margin:0;">闲置秒数</label>
+        <input type="number" id="idleSecInput" min="1" max="300" step="1" value="5" />
+      </div>
+      <div class="tip" style="margin-top:2px;">多少秒无操作后变淡（默认 5 秒）。</div>
+
+      <label class="check">
+        <input type="checkbox" id="quotesInput" />
+        <span>随机语录</span>
+        <span class="sub">偶尔在气泡里冒一句</span>
+      </label>
+      <textarea id="quotesTextInput" placeholder="每行或分号分隔一条，例如：&#10;加油，余额还够用~&#10;记得充值哦；今天也要开心" spellcheck="false"></textarea>
+    </div>
+
+    <div class="group">
+      <h2>交互</h2>
+      <label class="check">
+        <input type="checkbox" id="clickThroughInput" />
+        <span>鼠标穿透</span>
+        <span class="sub">点击穿透到后面的窗口</span>
+      </label>
+      <div class="row2">
+        <label class="field" for="clickThroughOpacityInput" style="margin:0;">穿透时透明度</label>
+        <input type="number" id="clickThroughOpacityInput" min="0.2" max="1" step="0.05" value="0.6" />
+      </div>
+      <div class="tip" style="margin-top:2px;">开启后鼠标会穿透小鲸鱼点到后面的窗口，小鲸鱼同时变淡一些。穿透后可用托盘图标或 Ctrl+Shift+X 随时关闭。</div>
+    </div>
+
+    <div class="group">
+      <h2>外观定制</h2>
+      <label class="check">
+        <input type="checkbox" id="customImageInput" />
+        <span>使用自定义图片</span>
+      </label>
+      <button id="imageBtn" type="button">选择鲸鱼图片…</button>
+      <div class="tip">建议 1026×1026 的 PNG，气泡位置需与原图一致（中心 455,247）。</div>
+    </div>
+
+    <div class="group">
+      <h2>系统</h2>
+      <label class="check">
+        <input type="checkbox" id="autoStartInput" />
+        <span>开机自启</span>
+        <span class="sub">随系统登录自动启动</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="hotkeyInput" checked />
+        <span>全局热键</span>
+        <span class="sub">Ctrl+Shift+R 立即刷新</span>
+      </label>
+      <label class="field" for="chatHotkeyInput" style="margin-bottom:5px;">打开对话快捷键</label>
+      <input type="text" id="chatHotkeyInput" placeholder="Alt+Q" autocomplete="off" spellcheck="false" />
+      <div class="tip">全局快捷键，按下打开对话气泡，再按一次关闭。格式如 Alt+Q、Ctrl+Shift+O、Ctrl+Alt+C；留空用默认 Alt+Q。</div>
+      <label class="check">
+        <input type="checkbox" id="alwaysTopInput" checked />
+        <span>始终置顶</span>
+        <span class="sub">小鲸鱼悬浮在其它窗口之上</span>
+      </label>
+      <label class="field" style="margin-bottom:6px;">任务栏 / 托盘显示位置</label>
+      <div class="radio-group" id="displayModeGroup">
+        <label class="radio"><input type="radio" name="displayMode" value="all" checked /><span>全显示（任务栏 + 托盘都有图标）</span></label>
+        <label class="radio"><input type="radio" name="displayMode" value="taskbar" /><span>仅任务栏（只有任务栏图标）</span></label>
+        <label class="radio"><input type="radio" name="displayMode" value="tray" /><span>仅托盘（只有托盘图标）</span></label>
+        <label class="radio"><input type="radio" name="displayMode" value="hidden" /><span>全隐藏（任务栏和托盘都没有图标）</span></label>
+      </div>
+      <div class="tip" style="margin-top:2px;">此选项只影响任务栏/托盘图标，与桌宠本体无关——小鲸鱼始终显示在桌面，是否置顶由上方「始终置顶」控制。</div>
+      <label class="check">
+        <input type="checkbox" id="snapInput" checked />
+        <span>自动吸附屏幕边缘</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button id="saveBtn">保存</button>
+    <button id="testBtn">保存并测试</button>
+  </div>
+  <div id="status"></div>
+  <script src="settings.js"></script>
+</body>
+</html>
