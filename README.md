@@ -30,7 +30,7 @@
 
 - 扩展 MCP（示例已内置）：网络搜索（web-search）、操控浏览器（playwright）、操控 Windows（windows-mcp）——**本地与云端对话都能调用同一套 MCP**
 
-- 本地生图：一键调用 ComfyUI，文本/生图显存自动互斥防爆
+- 本地生图：一键调用 ComfyUI 生成图片；**文本与生图显存自动互斥**（生图时自动停本地文本模型、释放显存，生成完自动恢复），防爆显存
 
 - 剪贴板识图、截屏共享、看图、工具开关、思考开关、显存条
 
@@ -77,6 +77,8 @@
 ## 本地进阶（可选）
 
 需要 Node.js 18+，以及（按需）：任意 OpenAI 兼容的本地推理服务（LM Studio / Ollama / llama.cpp / vLLM 等）+ 一个支持工具调用的本地模型、ComfyUI（本地生图）。相关脚本在 `chat-workspace/`，路径已在 `config.example.json` 参数化，占位符请按你的机器填写。
+
+文本模型与生图（ComfyUI）默认**显存互斥**：生图时会自动停掉本地文本模型、释放显存，生成完毕再恢复文本模型，避免小显存同时跑两个大模型而爆显存、卡死。
 
 **白名单怎么加**：本地文件工具只允许读写你指定的目录。复制 `chat-workspace/config.local.json.example` 为 `chat-workspace/config.local.json`，在 `localWhitelist` 数组里填你想让本地模型访问的目录（如 `["D:\\工作", "C:\\Users\\me\\Documents"]`）。白名单之外的一律拒绝；`COM:WORKSPACE` 等占位符会被自动解析成实际目录。
 
