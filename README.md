@@ -76,7 +76,7 @@
 
 ## 本地进阶（可选）
 
-需要 Node.js 18+，以及（按需）：LM Studio + 一个支持工具调用的本地模型（默认推荐 Qwen3.5-9B）、ComfyUI（本地生图）。相关脚本在 `chat-workspace/`，路径已在 `config.example.json` 参数化，占位符请按你的机器填写。
+需要 Node.js 18+，以及（按需）：任意 OpenAI 兼容的本地推理服务（LM Studio / Ollama / llama.cpp / vLLM 等）+ 一个支持工具调用的本地模型、ComfyUI（本地生图）。相关脚本在 `chat-workspace/`，路径已在 `config.example.json` 参数化，占位符请按你的机器填写。
 
 **白名单怎么加**：本地文件工具只允许读写你指定的目录。复制 `chat-workspace/config.local.json.example` 为 `chat-workspace/config.local.json`，在 `localWhitelist` 数组里填你想让本地模型访问的目录（如 `["D:\\工作", "C:\\Users\\me\\Documents"]`）。白名单之外的一律拒绝；`COM:WORKSPACE` 等占位符会被自动解析成实际目录。
 
