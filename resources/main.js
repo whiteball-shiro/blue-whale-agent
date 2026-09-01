@@ -683,7 +683,7 @@ function getLmMaxCtx(modelId) {
   if (lmCtxCache && Date.now() - lmCtxAt < 60000) return lmCtxCache
   // 读正在运行的 llama-server 的 --ctx-size（LM Studio 实际设置）
   try {
-    const out = execFileSync('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'llama-server.exe' } | Select-Object -First 1 -ExpandProperty CommandLine"], { encoding: 'utf8' })
+    const out = execFileSync('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'pwsh|powershell|cmd|cscript|wscript' -and $_.CommandLine -match '--ctx-size' -and $_.CommandLine -match '\\.gguf' } | Select-Object -First 1 -ExpandProperty CommandLine"], { encoding: 'utf8' })
     const m = /--ctx-size\s+(\d+)/.exec(out || '')
     if (m) { lmCtxCache = parseInt(m[1], 10); lmCtxAt = Date.now(); return lmCtxCache }
   } catch (err) { /* ignore */ }
@@ -2025,7 +2025,7 @@ ipcMain.handle('chat:set-mcp-server', (_e, { id, on }) => {
 })
 ipcMain.handle('chat:ctx-info', (_e, { id }) => {
   const conv = loadConvs().find((c) => c.id === id)
-  const max = getLmMaxCtx(loadConfig().chatModel || '')
+  const max = getLmMaxCtx(id || loadConfig().chatModel || '')
   const used = conv ? convTokens(conv) : 0
   return { max, used, remaining: Math.max(0, max - used) }
 })
