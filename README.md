@@ -80,6 +80,8 @@
 
 文本模型与生图（ComfyUI）默认**显存互斥**：生图时会自动停掉本地文本模型、释放显存，生成完毕再恢复文本模型，避免小显存同时跑两个大模型而爆显存、卡死。
 
+恢复文本模型时，优先用 LM Studio 的 `lms`（未配置会自动探测）；如果你不用 LM Studio（例如直接跑 llama.cpp），请在 `config.local.json` 里配置好 `localLlamaExe` 和 `localModelPath`，否则生图后无法恢复文本模型。
+
 **白名单怎么加**：本地文件工具只允许读写你指定的目录。复制 `chat-workspace/config.local.json.example` 为 `chat-workspace/config.local.json`，在 `localWhitelist` 数组里填你想让本地模型访问的目录（如 `["D:\\工作", "C:\\Users\\me\\Documents"]`）。白名单之外的一律拒绝；`COM:WORKSPACE` 等占位符会被自动解析成实际目录。
 
 **MCP 配置说明**：桌宠的 MCP 服务器统一写在主配置 `config.json` 的 `mcps` 数组 + `mcpServersOn` 开关里。`config.example.json` 已给出 qwen-files、web-search、playwright、windows-mcp 四个示例：
