@@ -581,7 +581,7 @@ async function readLmModels() {
       })
       const arr = JSON.parse(out)
       const list = (Array.isArray(arr) ? arr : [])
-        .filter((m) => m && m.type === 'llm' && m.modelKey && !(/@/.test(m.modelKey) && !/\.gguf$/i.test(m.modelKey)))
+        .filter((m) => m && m.type === 'llm' && m.modelKey)
         .map((m) => ({
           id: m.modelKey,
           displayName: String(m.displayName || m.modelKey).replace(/^.*[\\/]/, '') + ' (本地)',

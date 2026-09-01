@@ -80,7 +80,7 @@
 
 - **本地来源不绑死**：`localBaseUrl` 控制「本地」来源连的本地推理服务地址，支持任意 OpenAI 兼容接口。留空默认用 LM Studio 端口（`http://127.0.0.1:1234/v1`）；想换 Ollama 等填 `http://127.0.0.1:11434/v1` 即可。
 
-- **本地模型列表**：用 LM Studio 时，桌宠会通过它的 CLI（`lms ls`）列出**磁盘上全部**语言模型（含未加载的），自动过滤掉 embedding 和 `@` 占位等脏条目（避免挑到不可加载的假模型）；用其它本地服务（Ollama / llama.cpp）时走 `/v1/models` 接口，并做同样的清洗。分流/委派默认取列表里**第一个可用模型**（对话框顶部选中某个模型会记到 `chatModel`，可固定来源）。
+- **本地模型列表**：用 LM Studio 时，桌宠会通过它的 CLI（`lms ls`）列出**磁盘上全部**语言模型（含未加载的），只过滤 embedding；用其它本地服务（Ollama / llama.cpp）时走 `/v1/models` 接口，并过滤 embedding 与明显的脏占位 id（LM Studio 里带 `@` 的 key 是真实模型，不会被过滤）。分流/委派默认取列表里**第一个可用模型**（对话框顶部选中某个模型会记到 `chatModel`，可固定来源）。
 
 - **本地模型可配置**：`localModelFilter` 控制挑哪个本地模型（默认 qwen，可改 llama/qwen3 等），`localModelPath`/`localModelMmproj` 填你自己模型的路径。
 
