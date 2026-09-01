@@ -925,7 +925,7 @@ async function runLmStudio(conv, model, imagePath, onDelta, onDone, onStatus) {
   const cd = chatWorkspace()
   try { fs.mkdirSync(cd, { recursive: true }) } catch (err) { /* ignore */ }
   const isVision = resolveVision(model)
-  const messages = (conv.messages || []).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+  const messages = [{ role: 'system', content: LLM_SYSTEM_PROMPT }].concat((conv.messages || []).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })))
   if (!messages.length) { onDone({ error: '没有可发送的内容' }); return }
   // 本地模式必须给模型：未选择时自动取第一个可用模型；没有则友好报错
   let useModel = (model && String(model).trim()) || ''
