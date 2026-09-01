@@ -931,7 +931,8 @@ async function runLmStudio(conv, model, imagePath, onDelta, onDone, onStatus) {
   let useModel = (model && String(model).trim()) || ''
   if (!useModel) {
     const lms = await readLmModels()
-    useModel = lms[0] ? lms[0].id : ''
+    const ids = lms.map((m) => m.id)
+    useModel = ids.find((id) => !/@/.test(id)) || ids[0] || ''
   }
   if (!useModel) {
     onDone({ error: '没有可用的本地模型。请先在 LM Studio 里加载模型，或在顶部选择一个模型。' })
@@ -1104,8 +1105,8 @@ async function pickLocalModel() {
   try {
     const lms = await readLmModels()
     const ids = lms.map((m) => m.id)
-    // 通用：挑第一个本地模型充当“委派”模型（已排除 embedding）
-    return ids[0] || ''
+    // 通用：优先挑 id 不含 @ 的“干净”本地模型（避免挑到 LM Studio 占位/超大模型），否则取第一个
+    return ids.find((id) => !/@/.test(id)) || ids[0] || ''
   } catch { return '' }
 }
 
