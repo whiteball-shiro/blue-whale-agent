@@ -44,7 +44,7 @@ Codex 下拉会自动读取你本机配置的模型；本地下拉列出全部�
 
 ## 注意
 
-- `config.json` 和 `config.local.json` 含密钥/真实路径，**不要提交**。
+- `config.json` 和 `config.local.json` 含你的密钥和本机路径，软件会自动忽略，请勿上传或分享。
 - 本地文件工具仅限白名单目录；危险操作会弹确认。
 - 关掉 LM Studio 后，只剩 Codex / 云端能用。
 

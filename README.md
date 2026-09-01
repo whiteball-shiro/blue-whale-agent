@@ -68,7 +68,7 @@
 
 - **本地模型可配置**：`localModelFilter` 控制挑哪个本地模型（默认 qwen，可改 llama/qwen3 等），`localModelPath`/`localModelMmproj` 填你自己模型的路径。
 
-- **本地模型目录**：`localModelDir` 用于读取本地 gguf 的上下文上限（防止历史太长卡死），留空则自动从 `localModelPath` 推导。本地进阶所需的 `llmBaseUrl / localWhitelist / workspaceDir` 等建议写在 `chat-workspace\config.local.json`（该文件已被 .gitignore 忽略）。
+- **本地模型目录**：`localModelDir` 用于读取本地 gguf 的上下文上限（防止历史太长卡死），留空则自动从 `localModelPath` 推导。本地进阶所需的 `llmBaseUrl / localWhitelist / workspaceDir` 等建议写在 `chat-workspace\config.local.json`（这个文件含你的本地配置，软件会自动忽略、不会上传到仓库）。
 
 - **进阶特性默认关**：`chatLocalRoute / chatMcp` 默认 false，只有你想省额度/用文件/生图时才打开。
 
@@ -76,7 +76,7 @@
 
 ## 本地进阶（可选）
 
-需要 Node.js 18+，以及（按需）：任意 OpenAI 兼容的本地推理服务（LM Studio / Ollama / llama.cpp / vLLM 等）+ 一个支持工具调用的本地模型、ComfyUI（本地生图）。相关脚本在 `chat-workspace/`，路径已在 `config.example.json` 参数化，占位符请按你的机器填写。
+需要 Node.js 18+，以及（按需）：任意 OpenAI 兼容的本地推理服务（LM Studio / Ollama / llama.cpp / vLLM 等）+ 一个支持工具调用的本地模型、ComfyUI（本地生图）。相关脚本在 `chat-workspace/`，请参照 `chat-workspace\config.local.json.example` 按你的机器填写路径。
 
 文本模型与生图（ComfyUI）默认**显存互斥**：生图时会自动停掉本地文本模型、释放显存，生成完毕再恢复文本模型，避免小显存同时跑两个大模型而爆显存、卡死。
 
@@ -101,7 +101,7 @@
 
 ## 安全与合规
 
-- 本仓库不含任何真实密钥/个人路径（已脱敏为占位符）；你自己的 `config.json`（含 API Key/聊天记录）不要提交。
+- 你的 `config.json` 与 `config.local.json` 含 API Key 和本机路径，请勿上传到公开仓库或分享。
 
 - 本地模型的文件工具仅限白名单目录读写、不能执行终端/联网/数据库；生图与文本模型显存互斥。
 
