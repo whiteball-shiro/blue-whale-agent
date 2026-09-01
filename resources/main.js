@@ -2106,11 +2106,11 @@ ipcMain.handle('chat:send', async (_e, { id, message, look, attach }) => {
         try { const sz = fs.statSync(attach).size; sizeLabel = sz >= 1048576 ? (sz / 1048576).toFixed(1) + ' MB' : Math.round(sz / 1024) + ' KB' } catch (e) { /* ignore */ }
         const isLocalBig = prov === 'lmstudio' && content.length > MAX
         const note = isLocalBig
-          ? '\n（文档较长：约 ' + content.length + ' 字 / ' + sizeLabel + '，本地 9B 上下文有限，只读取了前 ' + MAX + ' 字，无法完整翻译/总结全文。建议切换到 Codex/云端 来源处理整篇文档）'
+          ? '\n（文档较长：约 ' + content.length + ' 字 / ' + sizeLabel + '，本地模型上下文有限，只读取了前 ' + MAX + ' 字，无法完整翻译/总结全文。建议切换到 Codex/云端 来源处理整篇文档）'
           : (content.length > MAX ? '\n（已截取前 ' + MAX + ' 字符）' : '')
-        if (isLocalBig) notice = '⚠️ 该文档较大（约 ' + content.length + ' 字，' + sizeLabel + '），本地 9B 只读了前 ' + MAX + ' 字，可能无法完整翻译/总结。建议先切到上方“Codex/云端”来源再发送全文。'
+        if (isLocalBig) notice = '⚠️ 该文档较大（约 ' + content.length + ' 字，' + sizeLabel + '），本地模型只读了前 ' + MAX + ' 字，可能无法完整翻译/总结。建议先切到上方“Codex/云端”来源再发送全文。'
         effectiveMsg = '[附带文件: ' + path.basename(attach) + ']\n' + content.slice(0, MAX) + note + '\n\n' + effectiveMsg
-        // 本地分流时预留一个截断到 3000 字的版本，避免 9B 装不下
+        // 本地分流时预留一个截断到 3000 字的版本，避免本地模型装不下
         if (content.length > 3000) {
           localMsg = '[附带文件: ' + path.basename(attach) + ']\n' + content.slice(0, 3000) + '\n（文档较长：约 ' + content.length + ' 字，已截取前 3000 字供本地模型处理）\n\n' + msg
         }
@@ -2129,7 +2129,7 @@ ipcMain.handle('chat:send', async (_e, { id, message, look, attach }) => {
   const model = loadConfig().chatModel || ''
   const provider = loadConfig().chatProvider === 'lmstudio' ? 'lmstudio' : (loadConfig().chatProvider === 'llm' ? 'llm' : 'codex')
   // 本地分流判断：Codex 模式下，系统/网络等危险任务直接给 Codex；
-  // 其余让本地 9B 自己判断；开着 MCP 时允许简单的写删改及只读/查询类调用分流到本地
+  // 其余让本地模型自己判断；开着 MCP 时允许简单的写删改及只读/查询类调用分流到本地
   let useLocal = false
   // 本地分流：Codex / API 来源下都允许把“简单/文本”任务先交给本地模型省额度；本地来源本身就在本地，无需分流
   const routeOn = provider !== 'lmstudio' && loadConfig().chatLocalRoute === true
@@ -2149,7 +2149,7 @@ ipcMain.handle('chat:send', async (_e, { id, message, look, attach }) => {
         if (toolNames.length) canLocal = await lmClassifyWithTools(classifyMsg, toolNames)
       }
       if (canLocal && lmModel) {
-        // 委派前 token 上限守卫：本地 9B 装不下就退回 Codex，避免卡死
+        // 委派前 token 上限守卫：本地模型装不下就退回 Codex，避免卡死
         const max = getLmMaxCtx(lmModel) || 6144
         const used = convTokens(conv) + estimateTokens(localMsg || effectiveMsg) + 24 + (imagePath ? 1200 : 0)
         useLocal = used <= max - 900
@@ -2161,7 +2161,7 @@ ipcMain.handle('chat:send', async (_e, { id, message, look, attach }) => {
     const max = getLmMaxCtx(model) || 6144
     const used = convTokens(conv) + estimateTokens(effectiveMsg) + 24
     if (used > max - 900) {
-      return { ok: false, error: '对话历史太长（约 ' + used + ' / ' + max + ' tokens），本地 9B 装不下，继续会卡死。请「新建对话」，或先切到上方 Codex/云端 来源。' }
+      return { ok: false, error: '对话历史太长（约 ' + used + ' / ' + max + ' tokens），本地模型装不下，继续会卡死。请「新建对话」，或先切到上方 Codex/云端 来源。' }
     }
   }
   conv.messages = conv.messages || []
