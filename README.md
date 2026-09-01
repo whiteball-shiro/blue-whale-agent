@@ -119,18 +119,18 @@ npm install        # 安装 Electron 等依赖
 npx electron .     # 运行桌宠
 ```
 
-**打包成 exe**：
-
-```bash
-# 1. 在项目根安装 electron-builder
-npm i -D electron electron-builder
-# 2. 把 resources/ 里的代码打包
-npx asar pack resources release/app.asar
-# 3. 用 electron-builder 生成安装包（需在 package.json 配置 build 字段）
-npx electron-builder --win
-```
-
-> 如果你只是给内网/朋友用，也可以直接复制 `resources/` 目录，用 `npx electron resources` 运行，无需打包。
+  **打包成 exe**（在 `resources/` 目录执行）：
+  
+  ```bash
+  cd resources
+  npm i -D electron-builder
+  npx electron-builder --win
+  ```
+  
+  打包成功后，安装包会生成在 `resources\dist\` 目录下（文件名形如 `deepseek-whale-pet Setup <版本>.exe`），把它上传到 GitHub Release 即可。
+  
+  > 免安装绿色版在 `resources\dist\win-unpacked\`，可整套文件夹拷给朋友直接运行。
+  > 如果你只是给内网/朋友用，也可以直接复制 `resources/` 目录，用 `npx electron .` 运行，无需打包。
 
 ---
 
