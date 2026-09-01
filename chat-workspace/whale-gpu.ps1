@@ -107,6 +107,31 @@ $lmsCli      = Resolve-LmsCli
 $modelId     = Cfg 'localModelId' ''
 $extraArgs   = Cfg 'localExtraArgs' ''
 
+# ---- 记录“上次加载的模型”：生图前抓取，生图后恢复同一个 ----
+$lastModelFile = Join-Path $PSScriptRoot '.whale-last-model.json'
+
+function Get-LoadedModelId {
+  # 读正在运行的 llama-server 的 --model 文件名，在 lms ls 里匹配出可 load 的 id
+  try {
+    $proc = Get-CimInstance Win32_Process -Filter "Name='llama-server.exe'" | Select-Object -First 1
+    if (-not $proc -or $proc.CommandLine -notmatch '--model\s+"?([^"]+?\.gguf)"?') { return '' }
+    $fname = [System.IO.Path]::GetFileName($Matches[1])
+    if ($lmsCli) {
+      $list = @(& $lmsCli ls --json 2>$null | ConvertFrom-Json)
+      $hit = @($list | Where-Object { "$($_.indexedModelIdentifier) $($_.path) $($_.modelKey) $($_.displayName)" -match [regex]::Escape($fname) })
+      if ($hit.Count) { if ($hit[0].indexedModelIdentifier) { return $hit[0].indexedModelIdentifier } else { return $hit[0].modelKey } }
+    }
+    return ''
+  } catch { return '' }
+}
+function Read-LastModelId {
+  try { if (Test-Path $lastModelFile) { return ((Get-Content $lastModelFile -Raw -Encoding UTF8 | ConvertFrom-Json).modelId) } } catch { }
+  return ''
+}
+function Write-LastModelId([string]$id) {
+  try { @{ modelId = $id } | ConvertTo-Json -Compress | Set-Content -LiteralPath $lastModelFile -Encoding UTF8 } catch { }
+}
+
 function Test-Port([int]$port) {
   try { (Test-NetConnection -ComputerName 127.0.0.1 -Port $port -WarningAction SilentlyContinue).TcpTestSucceeded } catch { $false }
 }
@@ -171,6 +196,7 @@ function Get-Vram {
 }
 
 function Stop-TextModel {
+  Write-LastModelId (Get-LoadedModelId)
   $procs = Get-Process -Name llama-server -ErrorAction SilentlyContinue
   if ($procs) { $procs | Stop-Process -Force; Write-Host "text model stopped ($($procs.Count) process)" } else { Write-Host 'text model not running' }
   Start-Sleep -Seconds 3
@@ -183,12 +209,15 @@ function Start-TextModel {
 
   # 优先用 lms（LM Studio）恢复，最通用
   if ($lmsCli) {
-    $model = $modelId
+    $model = Read-LastModelId
+    if (-not $model) { $model = $modelId }
     if (-not $model) {
       try {
-        $list = & $lmsCli ls --json 2>$null | ConvertFrom-Json
-        $pick = @($list | Where-Object { "$($_.type)".ToLower() -notmatch 'embedding' })
-        if ($pick.Count) { $model = if ($pick[0].id) { $pick[0].id } else { $pick[0].modelKey } }
+        $list = @(& $lmsCli ls --json 2>$null | ConvertFrom-Json)
+        $llms = @($list | Where-Object { "$($_.type)".ToLower() -notmatch 'embedding' })
+        $filter = Cfg 'localModelFilter' 'qwen'
+        $cand = @($llms | Where-Object { $k = "$($_.indexedModelIdentifier) $($_.path) $($_.modelKey) $($_.displayName)"; (-not $filter) -or ($k -match [regex]::Escape($filter)) })
+        if ($cand.Count) { $model = if ($cand[0].indexedModelIdentifier) { $cand[0].indexedModelIdentifier } else { $cand[0].modelKey } }
       } catch { }
     }
     if ($model) {

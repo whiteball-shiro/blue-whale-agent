@@ -38,6 +38,9 @@ __pycache__/
 # 本地备份（勿提交）
 _precheck-bak/
 
+# 本地运行时状态（记录上次加载的模型）
+chat-workspace/.whale-last-model.json
+
 # 根目录误生成的 npm 文件（实际应用包在 resources/）
 /package.json
 /package-lock.json
