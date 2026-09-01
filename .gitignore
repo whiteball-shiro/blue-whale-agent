@@ -37,3 +37,7 @@ __pycache__/
 
 # 本地备份（勿提交）
 _precheck-bak/
+
+# 根目录误生成的 npm 文件（实际应用包在 resources/）
+/package.json
+/package-lock.json
