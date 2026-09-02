@@ -16,11 +16,14 @@ class McpClient {
 
   async connect() {
     if (this.proc) return
+    // Windows 下只有裸命令（如 npx，实际是 npx.cmd）才需要 shell 解析 PATH；
+    // 带完整路径的程序（D:\node js\node.exe 等）若也走 shell，路径/参数里的空格会被 cmd 拆坏，导致 MCP 服务秒退
+    const useShell = process.platform === 'win32' && !/[\\/]/.test(String(this.def.command || ''))
     this.proc = spawn(this.def.command, this.def.args || [], {
       env: { ...process.env, ...(this.def.env || {}) },
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
-      shell: process.platform === 'win32',   // Windows 下 npx 是 .cmd，必须走 shell 才能启动
+      shell: useShell,
     })
     this.proc.on('error', (err) => { this.ready = false; this.proc = null; this.rejectAll('MCP 启动失败：' + err.message) })
     this.rl = readline.createInterface({ input: this.proc.stdout })
