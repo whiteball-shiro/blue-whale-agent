@@ -681,10 +681,23 @@ let lmCtxCache = 0
 let lmCtxAt = 0
 function getLmMaxCtx(modelId) {
   if (lmCtxCache && Date.now() - lmCtxAt < 60000) return lmCtxCache
-  // 读正在运行的 llama-server 的 --ctx-size（LM Studio 实际设置）
+  // 优先：读 LM Studio 报告的运行上下文（lms ps），最可靠
+  try {
+    const lms = lmsCliPath()
+    if (lms) {
+      const out = execFileSync(lms, ['ps', '--json'], { encoding: 'utf8', windowsHide: true, timeout: 5000 })
+      const arr = JSON.parse(out)
+      const m = (Array.isArray(arr) ? arr : []).find((x) => x && (x.contextLength || x.maxContextLength))
+      if (m) {
+        const c = Number(m.contextLength || m.maxContextLength || 0)
+        if (c > 0) { lmCtxCache = c; lmCtxAt = Date.now(); return lmCtxCache }
+      }
+    }
+  } catch (err) { /* ignore */ }
+  // 其次：读正在运行的 llama-server 的 --ctx-size（LM Studio 实际设置）
   try {
     const out = execFileSync('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Where-Object { $_.Name -notmatch 'pwsh|powershell|cmd|cscript|wscript' -and $_.CommandLine -match '--ctx-size' -and $_.CommandLine -match '\\.gguf' } | Select-Object -First 1 -ExpandProperty CommandLine"], { encoding: 'utf8' })
-    const m = /--ctx-size\s+(\d+)/.exec(out || '')
+    const m = /--ctx-size[= ]\s*(\d+)/.exec(out || '')
     if (m) { lmCtxCache = parseInt(m[1], 10); lmCtxAt = Date.now(); return lmCtxCache }
   } catch (err) { /* ignore */ }
   // 兜底：读 gguf 上限
