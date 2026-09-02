@@ -106,14 +106,13 @@
 
 **白名单怎么加**：本地文件工具只允许读写你指定的目录。复制 `chat-workspace/config.local.json.example` 为 `chat-workspace/config.local.json`，在 `localWhitelist` 数组里填你想让本地模型访问的目录（如 `["D:\\工作", "C:\\Users\\me\\Documents"]`）。白名单之外的一律拒绝；`COM:WORKSPACE` 等占位符会被自动解析成实际目录。
 
-**MCP 配置说明**：桌宠的 MCP 服务器统一写在主配置 `config.json` 的 `mcps` 数组 + `mcpServersOn` 开关里。`config.example.json` 已给出 qwen-files、web-search、playwright、windows-mcp 四个示例：
+**MCP 配置说明**：文件读写、生成 docx/pdf/pptx/xlsx、生图是**内置工具**，开 🧩 即可用，无需配置。只有**外部 MCP**（网络搜索、浏览器、Windows 操控、MySQL）要写在主配置 `config.json` 的 `mcps` 数组 + `mcpServersOn` 开关里。`config.example.json` 已给出 web-search、playwright、windows-mcp 三个示例，其余 `COM:` 占位符见[配置教程](docs/配置教程.md)「外部 MCP 工具」一节：
 
 - `COM:NODE_BIN` → 你的 node 可执行文件路径
 - `COM:WEB_SEARCH_MCP` → web-search MCP 的入口 js 路径
 - `COM:UVX_BIN` → uvx 可执行文件路径
-- `COM:CHAT_WORKSPACE` → 桌宠对话工作目录
 
-`windows-mcp`、`playwright` 是**高危工具**（能执行命令、操控系统/浏览器、跑页面代码）。桌宠默认对这类工具**弹确认框 + 写文件前自动备份**，请只在信任的模型来源下开启。
+`windows-mcp`、`playwright` 是**高危工具**（能执行命令、操控系统/浏览器、跑页面代码），桌宠默认对这类工具**弹确认框 + 写文件前自动备份**，请只在信任的模型来源下开启。MySQL 工具的写删改**不会**弹确认框，详见配置教程安全提示，切勿给生产库开放删改权限。
 
 ---
 
