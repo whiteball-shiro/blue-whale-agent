@@ -1154,16 +1154,14 @@ async function collectMcpTools(force) {
     byName.set('whale_create_xlsx', { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: 'create_xlsx', builtin: 'create_xlsx' })
     tools.push({
       name: 'whale_create_xlsx',
-      description: '在指定路径创建 Excel 表格（.xlsx）。用 rows 传二维数组（如 [["姓名","年龄"],["张三",20]]），第一行默认作为表头加粗；header=false 时则所有行都是普通数据。也可用 text 传多行文本，遇 Tab 或逗号自动分列。',
+      description: '生成一个 Excel（.xlsx）表格文件。你只需提供 path（保存路径）和 text（表格内容，每行一条数据，列之间用逗号分隔，第一行是表头），工具会自动转成真正的 Excel，无需你关心格式。例如 text 传："姓名,年龄\\n张三,20\\n李四,25"。path 传保存位置如 "E:\\\\Desktop\\\\成绩表.xlsx"。',
       inputSchema: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: '文件路径（.xlsx）' },
-          rows: { type: 'array', items: { type: 'array', items: {}, description: '每一行是一个数组，元素为单元格值' }, description: '二维数组，第一行默认作表头' },
-          text: { type: 'string', description: '多行文本，遇 Tab 或逗号分列（与 rows 二选一）' },
-          header: { type: 'boolean', description: '是否把第一行当作表头加粗，默认 true' },
+          path: { type: 'string', description: '保存路径（.xlsx），如 E:\\Desktop\\表.xlsx' },
+          text: { type: 'string', description: '表格内容：每行一条数据，列之间用逗号分隔，第一行是表头。如 "姓名,年龄\\n张三,20"' },
         },
-        required: ['path'],
+        required: ['path', 'text'],
       },
       on: true,
       serverId: '__builtin__', serverName: '内置', toolName: 'create_xlsx',
@@ -1174,9 +1172,9 @@ async function collectMcpTools(force) {
       { name: 'whale_read_file', desc: '读取文本文件内容', tool: 'read_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
       { name: 'whale_write_file', desc: '创建新文件或覆盖写入已有文本文件', tool: 'write_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' }, content: { type: 'string', description: '要写入的完整文件内容' } }, required: ['path', 'content'] } },
       { name: 'whale_delete_file', desc: '删除单个文件（不允许删除目录）', tool: 'delete_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
-      { name: 'whale_create_docx', desc: '在指定路径创建 Word 文档（.docx），内容为给定文本', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径（.docx）' }, text: { type: 'string', description: '文档内容' } }, required: ['path', 'text'] } },
-      { name: 'whale_create_pdf', desc: '在指定路径创建 PDF 文件，内容为给定文本', tool: 'create_pdf', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径（.pdf）' }, text: { type: 'string', description: '文档内容' } }, required: ['path', 'text'] } },
-      { name: 'whale_create_pptx', desc: '在指定路径创建 PowerPoint 演示文稿（.pptx）。用 text 每页显示相同文本、slides 控制页数（默认1）；或用 slides_text 字符串数组，每项为一页（首行标题，- 开头为要点）', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径（.pptx）' }, text: { type: 'string', description: '每页显示的内容' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组' } }, required: ['path'] } },
+      { name: 'whale_create_docx', desc: '生成一个 Word 文档（.docx）。你只需提供 path（保存路径）和 text（文档文字内容），工具自动生成 Word 文件，无需你关心格式。', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.docx）' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_pdf', desc: '生成一个 PDF 文档。你只需提供 path（保存路径）和 text（文档文字内容），工具自动生成 PDF，无需你关心格式。', tool: 'create_pdf', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pdf）' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_pptx', desc: '生成一个 PowerPoint（.pptx）演示文稿。你只需提供 path（保存路径）和 text（每页内容，页之间用空行或 --- 分隔，每页第一行是标题），工具自动生成 PPT，无需你关心格式。', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pptx）' }, text: { type: 'string', description: '每页内容，页间用空行/--- 分隔' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组（可选）' } }, required: ['path', 'text'] } },
     ]
     for (const t of builtinFileTools) {
       byName.set(t.name, { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: t.tool, builtin: t.tool })
