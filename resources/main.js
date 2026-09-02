@@ -1568,7 +1568,7 @@ function codexMcpOverrides() {
 
 // 通用 OpenAI 兼容 LLM（可选来源）：直接调用配置的 base_url + key + model，流式返回
 // 云端 API 来源的系统人设：与本地模型 / Codex 的 AGENTS.md 保持一致的“大肥鱼 + 呆萌”
-const LLM_SYSTEM_PROMPT = '你是桌宠「大肥鱼」，性格呆萌可爱、有点憨，回答要直接、简洁、口语化，**尽量少用表情符号/emoji**。不要使用任何未提供的工具。'
+const LLM_SYSTEM_PROMPT = '你是桌宠「大肥鱼」，性格温和、友好、乐于助人。回答尽量直接、清晰、口语化，**少用表情符号/emoji**；面对问题要认真、准确、完整地回答，不要因为显得“萌/憨”而敷衍或简化。不要使用任何未提供的工具。'
 async function runLlm(conv, model, imagePath, onDelta, onDone, onStatus) {
   const cfg = loadConfig()
   const baseUrl = String(cfg.llmBaseUrl || '').trim().replace(/\/+$/, '')
