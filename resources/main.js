@@ -1064,7 +1064,7 @@ async function execMcpToolCall(meta, def, args) {
 
 function buildLocalMcpTools(enabled) {
   const cfg = loadConfig()
-  let budget = 2200 // 工具 schema 的 token 预算（4096 上下文内留足对话历史）
+  let budget = 6000 // 工具 schema 的 token 预算（内置文件/文档工具较多，需保证全部注入；生成类任务历史短）
   const out = []
   for (const t of (enabled || [])) {
     const def = (cfg.mcps || []).find((d) => d.id === t.serverId)
@@ -1154,12 +1154,12 @@ async function collectMcpTools(force) {
     byName.set('whale_create_xlsx', { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: 'create_xlsx', builtin: 'create_xlsx' })
     tools.push({
       name: 'whale_create_xlsx',
-      description: '生成一个 Excel（.xlsx）表格文件。你只需提供 path（保存路径）和 text（表格内容，每行一条数据，列之间用逗号分隔，第一行是表头），工具会自动转成真正的 Excel，无需你关心格式。例如 text 传："姓名,年龄\\n张三,20\\n李四,25"。path 传保存位置如 "E:\\\\Desktop\\\\成绩表.xlsx"。',
+      description: '生成 Excel（.xlsx）表格文件。传 path（保存路径）和 text（每行一条数据、逗号分列、首行是表头），工具自动转成 Excel。',
       inputSchema: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: '保存路径（.xlsx），如 E:\\Desktop\\表.xlsx' },
-          text: { type: 'string', description: '表格内容：每行一条数据，列之间用逗号分隔，第一行是表头。如 "姓名,年龄\\n张三,20"' },
+          path: { type: 'string', description: '保存路径（.xlsx）' },
+          text: { type: 'string', description: '表格内容：每行一条数据、逗号分列、首行是表头' },
         },
         required: ['path', 'text'],
       },
