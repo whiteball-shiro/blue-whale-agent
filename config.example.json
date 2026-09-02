@@ -39,8 +39,9 @@
     { "id": "web-search", "name": "网络搜索", "command": "COM:NODE_BIN", "args": ["COM:WEB_SEARCH_MCP"], "env": {}, "localReadOnly": false }
     ,{ "id": "playwright", "name": "浏览器", "command": "npx", "args": ["@playwright/mcp@latest"], "env": {}, "localReadOnly": false }
     ,{ "id": "windows-mcp", "name": "Windows 操控", "command": "COM:UVX_BIN", "args": ["windows-mcp", "serve"], "env": {}, "localReadOnly": false }
+    ,{ "id": "mysql", "name": "MySQL", "command": "npx", "args": ["-y", "@benborla29/mcp-server-mysql"], "env": { "MYSQL_HOST": "localhost", "MYSQL_PORT": "3306", "MYSQL_USER": "root", "MYSQL_PASS": "你的密码", "MYSQL_DB": "库名", "ALLOW_INSERT_OPERATION": "true", "ALLOW_UPDATE_OPERATION": "true", "ALLOW_DELETE_OPERATION": "true", "ALLOW_DDL_OPERATION": "true" }, "localReadOnly": false }
   ],
-  "mcpServersOn": { "web-search": true, "playwright": true, "windows-mcp": true },
+  "mcpServersOn": { "web-search": true, "playwright": true, "windows-mcp": true, "mysql": false },
 
   "llmBaseUrl": "",
   "llmApiKey": "",
