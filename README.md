@@ -83,6 +83,7 @@
 - **本地模型列表**：用 LM Studio 时，桌宠会通过它的 CLI（`lms ls`）列出**磁盘上全部**语言模型（含未加载的），只过滤 embedding；用其它本地服务（Ollama / llama.cpp）时走 `/v1/models` 接口，并过滤 embedding 与明显的脏占位 id（LM Studio 里带 `@` 的 key 是真实模型，不会被过滤）。分流/委派默认取列表里**第一个可用模型**（对话框顶部选中某个模型会记到 `chatModel`，可固定来源）。
 
 - **本地模型可配置**：`localModelFilter` 控制挑哪个本地模型（默认 qwen，可改 llama/qwen3 等），`localModelPath`/`localModelMmproj` 填你自己模型的路径。
+  - **⚠ 多模态模型要单独放一个文件夹**：LM Studio 是按「同目录」配对 mmproj 的，一个文件夹里混了多套模型/mmproj 会配对错、报 `n_embd mismatch`。所以每个能识图的模型（Gemma / Qwen-VL / LLaVA / InternVL 等），都在模型根目录下建一个独立文件夹，把它的主模型 `.gguf` 和配套 `mmproj-*.gguf` 放一起，别和其它模型混放。
 
 - **本地模型目录**：`localModelDir` 用于读取本地 gguf 的上下文上限（防止历史太长卡死），留空则自动从 `localModelPath` 推导。本地进阶所需的 `llmBaseUrl / localWhitelist / workspaceDir` 等建议写在 `chat-workspace\config.local.json`（这个文件含你的本地配置，软件会自动忽略、不会上传到仓库）。
 
