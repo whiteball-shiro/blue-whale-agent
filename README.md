@@ -137,6 +137,25 @@ uvx windows-mcp --help
 
 > ⚠️ playwright / windows-mcp 属高危工具（能开浏览器 / 执行命令），仅在信任的对话来源下开启。
 
+## 生图（本地 ComfyUI）
+
+打开对话后点左侧 `🧩`（MCP），直接说「画一张…」即可：会自动停文本模型 → 以 `--lowvram` 启动 ComfyUI → 出图 → 恢复文本模型（显存互斥，防爆显存）。图片默认保存到桌面 `whale-img-*.png`。也可手动跑：
+
+```powershell
+powershell -File chat-workspace\whale-gpu.ps1 generate "一只猫"
+```
+
+配置写在 `chat-workspace\config.local.json`：
+
+| 字段 | 填什么 |
+| --- | --- |
+| `comfyPy` | ComfyUI 用的 python.exe |
+| `comfyDir` | ComfyUI 程序目录（含 `main.py`） |
+| `comfyCli` | 生图入口脚本（**决定用哪个模型、节点怎么连**） |
+| `comfyPort` | ComfyUI 端口（默认 `8188`） |
+
+换生图模型：同架构（Qwen-Image / Anima 系）只需改 `comfyCli` 脚本顶部的模型文件名，并把文件放进 ComfyUI 的 `models\diffusion_models` / `text_encoders` / `vae`；换成 SDXL 等不同架构时，工作流节点和采样参数也要跟着改（建议在 ComfyUI 试好后导出 API JSON，替换脚本里的 workflow）。详细步骤见 [配置教程「生图」](docs/配置教程.md#生图comfyui)。
+
 ## 本地进阶（可选）
 
 需要 Node.js 18+ 和任意 OpenAI 兼容本地服务（LM Studio / Ollama / llama.cpp 等）+ 支持工具调用的模型；生图还需 ComfyUI。详见 [配置教程](docs/配置教程.md) 的「本地」与「生图」章节。
