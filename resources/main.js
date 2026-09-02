@@ -1094,6 +1094,8 @@ function resolveVision(model) {
 // 收集 MCP 服务器上的工具（含开关状态），返回 {tools, byName}
 let mcpToolCache = null
 let mcpToolAt = 0
+// 这些功能已由桌宠"内置 MCP"覆盖（whale_*），外部服务器再提供同名工具就会重复，直接跳过
+const BUILTIN_TOOL_SET = new Set(['list_dir', 'read_file', 'write_file', 'delete_file', 'create_docx', 'create_pdf', 'create_pptx', 'create_xlsx', 'generate_image'])
 async function collectMcpTools(force) {
   if (mcpToolCache && !force && (Date.now() - mcpToolAt) < 30000) return mcpToolCache
   const cfg = loadConfig()
@@ -1106,6 +1108,8 @@ async function collectMcpTools(force) {
       await c.connect()
       const t = await c.listTools()
       for (const tool of t) {
+        // 去重：内置工具已覆盖的功能，跳过外部同名工具（避免模型看到两套做同一件事的工具）
+        if (BUILTIN_TOOL_SET.has(tool.name)) continue
         const openaiName = mcp.toolKey(def.id, tool.name)
         byName.set(openaiName, { serverId: def.id, serverName: def.name, toolName: tool.name })
         tools.push({
