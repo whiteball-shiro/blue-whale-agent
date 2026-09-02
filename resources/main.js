@@ -1113,12 +1113,63 @@ async function lmStreamChat(messages, useModel, toolsPayload, onDelta, opts) {
 // ---------------------------------------------------------------------------
 // Codex 模式本地分流：判断任务是否“力所能及”地交给本地模型
 // ---------------------------------------------------------------------------
-// 选择本地模型：挑一个可用的本地模型（readLmModels 已过滤 embedding）
+// 本地服务 origin：从 localEndpoint()（可能带 /v1 或 /api 后缀）推导出根地址，用于 Ollama /api/ps 等原生接口
+function localOrigin() {
+  return localEndpoint().replace(/\/v1\/?$/i, '').replace(/\/+$/, '')
+}
+
+// 读当前“已加载/运行中”的本地模型 id，适配多种本地来源（拿不到就返回空）。
+// 优先用正在跑的模型，委派不用重新加载/换模型，既快又不会顶掉用户当前用的模型。
+async function readLoadedLmModelId() {
+  // 1) LM Studio：lms ps --json 拿 running 实例（它同一时刻只加载一个 LLM，最准确）
+  const lms = lmsCliPath()
+  if (lms) {
+    try {
+      const out = await new Promise((resolve, reject) => {
+        execFile(lms, ['ps', '--json'], { encoding: 'utf8', windowsHide: true, timeout: 5000 }, (err, stdout) => err ? reject(err) : resolve(stdout))
+      })
+      const arr = JSON.parse(out)
+      const m = (Array.isArray(arr) ? arr : []).find((x) => x && (x.identifier || x.modelKey) && x.type === 'llm')
+      if (m && (m.identifier || m.modelKey)) return String(m.identifier || m.modelKey)
+    } catch (err) { /* lms 不可用则继续尝试其它来源 */ }
+  }
+  // 2) Ollama：GET /api/ps 拿当前加载到内存的模型（仅当明显是 Ollama 时才探测）
+  const base = String(loadConfig().localBaseUrl || '')
+  if (/(11434|\/api\/|ollama)/i.test(base)) {
+    try {
+      const res = await fetch(localOrigin() + '/api/ps', { signal: AbortSignal.timeout(4000) })
+      if (res.ok) {
+        const data = await res.json()
+        const arr = (data && Array.isArray(data.models)) ? data.models : []
+        const m = (arr.find((x) => x && (x.name || x.model)) || {})
+        const id = String(m.name || m.model || '').trim()
+        if (id) return id
+      }
+    } catch (err) { /* 忽略，继续 */ }
+  }
+  // 3) 通用 OpenAI 兼容（llama.cpp / vLLM 等单模型服务）：/v1/models 若只有一个 LLM 模型则默认它已加载
+  try {
+    const res = await fetch(localEndpoint() + '/models', { signal: AbortSignal.timeout(4000) })
+    if (res.ok) {
+      const data = await res.json()
+      const arr = (data && Array.isArray(data.data)) ? data.data : []
+      const llms = arr.filter((m) => m && m.id && !/embed/i.test(String(m.id)))
+      if (llms.length === 1) return String(llms[0].id)
+    }
+  } catch (err) { /* ignore */ }
+  return ''
+}
+
+// 选择本地模型：优先用当前已加载的本地模型，否则挑一个可用模型（readLmModels 已过滤 embedding）
 async function pickLocalModel() {
   try {
     const lms = await readLmModels()
     const ids = lms.map((m) => m.id)
-    // 通用：优先挑 id 不含 @ 的“干净”本地模型（避免挑到 LM Studio 占位/超大模型），否则取第一个
+    // 优先：用当前“已加载”的本地模型（LM Studio 同一时刻只有一个模型在显存里）。
+    // 已加载的模型不需要重新加载/换模型，委派既快又不会顶掉你正在用的模型，避免爆显存。
+    const loaded = await readLoadedLmModelId()
+    if (loaded) return loaded
+    // 回退：优先挑 id 不含 @ 的“干净”本地模型（避免挑到 LM Studio 占位/超大模型），否则取第一个
     return ids.find((id) => !/@/.test(id)) || ids[0] || ''
   } catch { return '' }
 }
