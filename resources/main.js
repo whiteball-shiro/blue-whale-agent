@@ -832,7 +832,8 @@ async function runBuiltinGenerateImage(args) {
   const ws = chatWorkspace()
   const script = path.join(ws, 'whale-gpu.ps1')
   if (!fs.existsSync(script)) return { text: '生图失败：找不到 whale-gpu.ps1，请先配置本地 ComfyUI 环境', isError: true }
-  const out = path.join(ws, 'whale-img-' + Date.now() + '.png')
+  // 默认把图片输出到桌面（用 [桌面] 让桌宠解析成真实桌面，用户能直接看到）
+  const out = path.join(resolveBuiltinPath('[桌面]'), 'whale-img-' + Date.now() + '.png')
   return await runGenerateImageProcess(script, ['generate', prompt, '-Out', out, '-Width', String(width), '-Height', String(height), '-Steps', String(steps)], out)
 }
 
@@ -1142,6 +1143,19 @@ function runBuiltinFilesystemTool(meta, args) {
     try { const st = fs.lstatSync(target); if (st.isDirectory()) return { text: '只支持删除单个文件，不允许删除目录', isError: true }; fs.unlinkSync(target); return { text: '已删除 ' + target } }
     catch (err) { return { text: '删除失败：' + err.message, isError: true } }
   }
+  if (n === 'copy_file') {
+    const src = resolveBuiltinPath(a.src || a.path || '')
+    const dest = resolveBuiltinPath(a.dest || a.path || '')
+    if (!src || !dest) return { text: '复制失败：缺少源路径 src 或目标路径 dest', isError: true }
+    if (!/^[A-Za-z]:[\\/]/.test(src) || !/^[A-Za-z]:[\\/]/.test(dest)) return { text: '复制失败：src/dest 必须是本地绝对路径（桌面可用 [桌面]）', isError: true }
+    try {
+      if (!fs.existsSync(src) || fs.statSync(src).isDirectory()) return { text: '复制失败：源文件不存在或是个目录：' + src, isError: true }
+      backupBeforeWrite(meta, { path: dest, dest })
+      fs.mkdirSync(path.dirname(dest), { recursive: true })
+      fs.copyFileSync(src, dest)
+      return { text: '已复制到 ' + dest }
+    } catch (err) { return { text: '复制失败：' + err.message, isError: true } }
+  }
   return { text: '未知内置文件工具: ' + n, isError: true }
 }
 
@@ -1177,7 +1191,11 @@ async function execMcpToolCall(meta, def, args) {
     return await runBuiltinCreateXlsx(args)
   }
   // 内置文件读写工具：本机磁盘操作，零依赖
-  if (meta && meta.builtin && ['list_dir', 'read_file', 'write_file', 'delete_file'].includes(meta.builtin)) {
+  if (meta && meta.builtin && ['list_dir', 'read_file', 'write_file', 'delete_file', 'copy_file'].includes(meta.builtin)) {
+    if (meta.builtin === 'copy_file') {
+      const ok = await confirmDangerousTool({ toolName: 'copy_file' }, args)
+      if (!ok) return { text: '（用户已取消复制）', isError: true }
+    }
     return runBuiltinFilesystemTool(meta, args)
   }
   // 内置文档生成工具：docx / pdf / pptx
@@ -1239,7 +1257,7 @@ function resolveVision(model) {
 let mcpToolCache = null
 let mcpToolAt = 0
 // 这些功能已由桌宠"内置 MCP"覆盖（whale_*），外部服务器再提供同名工具就会重复，直接跳过
-const BUILTIN_TOOL_SET = new Set(['list_dir', 'read_file', 'write_file', 'delete_file', 'create_docx', 'create_pdf', 'create_pptx', 'create_xlsx', 'generate_image'])
+const BUILTIN_TOOL_SET = new Set(['list_dir', 'read_file', 'write_file', 'delete_file', 'copy_file', 'create_docx', 'create_pdf', 'create_pptx', 'create_xlsx', 'generate_image'])
 // 判断某外部服务器是否"纯重复"——它的工具全部被内置覆盖（如 qwen-files 只有文件/文档工具），这类开关不再显示
 function isBuiltinDupServer(def) {
   if (!def) return false
@@ -1280,7 +1298,7 @@ async function collectMcpTools(force) {
     byName.set('whale_generate_image', { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: 'generate_image', builtin: 'generate_image' })
     tools.push({
       name: 'whale_generate_image',
-      description: '用本地 ComfyUI 生图。参数 prompt 为中文或英文提示词；width/height 建议 512~768；steps 建议 8~16。会自动停文本模型、生图后恢复。',
+      description: '用本地 ComfyUI 生图。参数 prompt 为中文或英文提示词；width/height 建议 512~768；steps 建议 8~16。会自动停文本模型、生图后恢复。图片默认保存到桌面（whale-img-*.png）。',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1316,6 +1334,7 @@ async function collectMcpTools(force) {
       { name: 'whale_read_file', desc: '读取文本文件内容。用户说“桌面上的 xx”时 path 填 [桌面]/xx。', tool: 'read_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径。桌面可用 [桌面]/文件名' } }, required: ['path'] } },
       { name: 'whale_write_file', desc: '创建新文件或覆盖写入已有文本文件。用户说“写到桌面”时 path 填 [桌面]/文件名。', tool: 'write_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径。桌面可用 [桌面]/文件名' }, content: { type: 'string', description: '要写入的完整文件内容' } }, required: ['path', 'content'] } },
       { name: 'whale_delete_file', desc: '删除单个文件（不允许删除目录）。用户说“删掉桌面的 xx”时 path 填 [桌面]/xx。', tool: 'delete_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径。桌面可用 [桌面]/文件名' } }, required: ['path'] } },
+      { name: 'whale_copy_file', desc: '把一个文件（图片/文档/表格等）复制到目标位置。复制图片、PDF、Excel 这类二进制文件必须用它，千万别用 write_file 把内容或路径文字写进目标文件（那样图片/文档会打不开）。用户说“复制到桌面”时 dest 填 [桌面]/文件名，src 填源文件路径。', tool: 'copy_file', schema: { type: 'object', properties: { src: { type: 'string', description: '源文件路径（桌面可用 [桌面]/文件名）' }, dest: { type: 'string', description: '目标路径（桌面用 [桌面]/文件名）' } }, required: ['src', 'dest'] } },
       { name: 'whale_create_docx', desc: '生成 Word 文档（.docx）。仅当用户明确要 Word 文档/文字稿/.docx 时才用。生成 PPT/演示文稿/幻灯片请用 whale_create_pptx。用户说“保存到桌面/桌面”时 path 填 [桌面]/文件名.docx。传 path 和 text。', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.docx）。用户说桌面就写 [桌面]/文件名.docx' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
       { name: 'whale_create_pdf', desc: '生成一个 PDF 文档。传 path（保存路径）和 text（文档文字内容），工具自动生成 PDF。用户说“保存到桌面/桌面”时 path 填 [桌面]/文件名.pdf。', tool: 'create_pdf', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pdf）。用户说桌面就写 [桌面]/文件名.pdf' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
       { name: 'whale_create_pptx', desc: '生成 PowerPoint 演示文稿/幻灯片（.pptx）。用户说生成 PPT/演示文稿/幻灯片/讲稿演示时，用这个工具（不要用 Word）。用户说“保存到桌面/桌面”时 path 填 [桌面]/文件名.pptx。传 path 和 text（每页内容用 --- 分隔，每页第一行是标题）。', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pptx）。用户说桌面就写 [桌面]/文件名.pptx' }, text: { type: 'string', description: '每页内容，页间用 --- 分隔，每页首行为标题' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组（可选）' } }, required: ['path', 'text'] } },
@@ -2022,7 +2041,7 @@ function codexMcpOverrides() {
 
 // 通用 OpenAI 兼容 LLM（可选来源）：直接调用配置的 base_url + key + model，流式返回
 // 云端 API 来源的系统人设：与本地模型 / Codex 的 AGENTS.md 保持一致的“大肥鱼 + 呆萌”
-const LLM_SYSTEM_PROMPT = '你是桌宠「大肥鱼」，性格温和、友好、乐于助人。回答尽量直接、清晰、口语化，**少用表情符号/emoji**；面对问题要认真、准确、完整地回答，不要因为显得“萌/憨”而敷衍或简化。当系统向你提供了工具（例如生成 Excel/Word/PDF/PPT、读写文件、生图）时，你要主动调用合适工具来完成任务，而不是说自己不会；工具会自动处理文件格式，你只需提供正确的参数。'
+const LLM_SYSTEM_PROMPT = '你是桌宠「大肥鱼」，性格温和、友好、乐于助人。回答尽量直接、清晰、口语化，**少用表情符号/emoji**；面对问题要认真、准确、完整地回答，不要因为显得“萌/憨”而敷衍或简化。当系统向你提供了工具（例如生成 Excel/Word/PDF/PPT、读写文件、生图）时，你要主动调用合适工具来完成任务，而不是说自己不会；工具会自动处理文件格式，你只需提供正确的参数。复制/移动图片、PDF、Excel 等二进制文件时，务必用 whale_copy_file（真复制）；绝不要用 write_file 把内容或路径字符串写进 .png/.pdf/.docx 等文件，否则文件会损坏无法打开。'
 async function runLlm(conv, model, imagePath, onDelta, onDone, onStatus) {
   const cfg = loadConfig()
   const baseUrl = String(cfg.llmBaseUrl || '').trim().replace(/\/+$/, '')
