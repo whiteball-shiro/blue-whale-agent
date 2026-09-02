@@ -929,28 +929,71 @@ elif kind == "pdf":
 elif kind == "pptx":
     from pptx import Presentation
     from pptx.util import Inches, Pt
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from pptx.dml.color import RGBColor
     slides_text = payload.get("slides_text")
     per_slide = isinstance(slides_text, list) and len(slides_text) > 0
     prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
     blank = prs.slide_layouts[6]
+    NAVY = RGBColor(0x1F, 0x38, 0x64)
+    DARK = RGBColor(0x33, 0x33, 0x33)
+    WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+    ACCENT = RGBColor(0x2E, 0x86, 0xC1)
+    GRAY = RGBColor(0x99, 0x99, 0x99)
+    # 页面来源：优先 slides_text（数组每项一页），否则把 text 按 --- 拆成多页
+    pages = []
     if per_slide:
-        for page in slides_text:
-            lines = [ln.strip() for ln in str(page).splitlines() if ln.strip()]
-            title = lines[0] if lines else "幻灯片"
-            slide = prs.slides.add_slide(blank)
-            tb = slide.shapes.add_textbox(Inches(1), Inches(0.5), Inches(8), Inches(0.8))
-            p = tb.text_frame.paragraphs[0]; r = p.add_run(); r.text = title; r.font.size = Pt(32); r.font.bold = True
-            body = slide.shapes.add_textbox(Inches(1), Inches(1.8), Inches(8), Inches(4))
-            bf = body.text_frame; bf.word_wrap = True
-            for j, item in enumerate(lines[1:]):
-                p2 = bf.paragraphs[0] if j == 0 else bf.add_paragraph(); r2 = p2.add_run(); r2.text = "•  " + item.lstrip("- "); r2.font.size = Pt(18)
+        pages = [str(x) for x in slides_text]
     else:
-        for _ in range(slides):
-            slide = prs.slides.add_slide(blank)
-            tb = slide.shapes.add_textbox(Inches(1), Inches(2.75), Inches(8), Inches(2))
-            tf = tb.text_frame; tf.word_wrap = False
-            p = tf.paragraphs[0]; p.alignment = 1
-            run = p.add_run(); run.text = text; run.font.size = Pt(72); run.font.bold = True; run.font.name = "Calibri"
+        raw = str(text)
+        for seg in raw.split('---'):
+            seg_lines = [ln.strip() for ln in seg.splitlines() if ln.strip()]
+            if seg_lines:
+                pages.append('\n'.join(seg_lines))
+        if not pages and raw.strip():
+            pages = [raw.strip()]
+    if not pages:
+        pages = [""]
+    for idx, page in enumerate(pages, start=1):
+        lines = [ln.strip() for ln in str(page).splitlines() if ln.strip()]
+        title = lines[0] if lines else ("第" + str(idx) + "页")
+        body_items = lines[1:]
+        slide = prs.slides.add_slide(blank)
+        # 顶部标题色带
+        band = slide.shapes.add_shape(1, 0, 0, prs.slide_width, Inches(1.2))
+        band.fill.solid(); band.fill.fore_color.rgb = NAVY
+        band.line.fill.background()
+        band.shadow.inherit = False
+        tb = slide.shapes.add_textbox(Inches(0.7), Inches(0.12), prs.slide_width - Inches(1.4), Inches(1.0))
+        tf = tb.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        p = tf.paragraphs[0]; r = p.add_run(); r.text = title
+        r.font.size = Pt(30); r.font.bold = True; r.font.color.rgb = WHITE
+        # 正文区
+        body = slide.shapes.add_textbox(Inches(1.0), Inches(1.7), prs.slide_width - Inches(2.0), prs.slide_height - Inches(2.3))
+        bf = body.text_frame; bf.word_wrap = True
+        para_idx = 0
+        for item in body_items:
+            is_bullet = item.startswith('-') or item.startswith('•') or item.startswith('*')
+            clean = item.lstrip('-•* ').strip()
+            p2 = bf.paragraphs[0] if para_idx == 0 else bf.add_paragraph()
+            para_idx += 1
+            p2.space_after = Pt(10)
+            if clean.endswith(':'):
+                r2 = p2.add_run(); r2.text = clean
+                r2.font.size = Pt(20); r2.font.bold = True; r2.font.color.rgb = ACCENT
+            elif is_bullet:
+                r2 = p2.add_run(); r2.text = "•  " + clean
+                r2.font.size = Pt(18); r2.font.color.rgb = DARK
+            else:
+                r2 = p2.add_run(); r2.text = clean
+                r2.font.size = Pt(16); r2.font.color.rgb = DARK
+        # 页码
+        pn = slide.shapes.add_textbox(prs.slide_width - Inches(1.6), prs.slide_height - Inches(0.6), Inches(1.2), Inches(0.4))
+        pfp = pn.text_frame.paragraphs[0]; pfp.alignment = PP_ALIGN.RIGHT
+        pr_ = pfp.add_run(); pr_.text = str(idx) + " / " + str(len(pages))
+        pr_.font.size = Pt(12); pr_.font.color.rgb = GRAY
     prs.save(out)
 else:
     raise SystemExit("unknown kind: " + kind)
