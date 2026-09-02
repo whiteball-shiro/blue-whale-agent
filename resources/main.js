@@ -1100,8 +1100,10 @@ const BUILTIN_TOOL_SET = new Set(['list_dir', 'read_file', 'write_file', 'delete
 function isBuiltinDupServer(def) {
   if (!def) return false
   const sig = (def.command || '') + ' ' + ((def.args || []).join(' '))
-  // 现成判断：命令指向 _qwen_mcp_server.mjs（本地文件/文档工具），全被内置覆盖
+  // 现成判断1：命令指向 _qwen_mcp_server.mjs（本地文件/文档工具），全被内置覆盖
   if (/[_\\/]\s*qwen_mcp_server\.mjs/i.test(sig)) return true
+  // 现成判断2：@modelcontextprotocol/server-filesystem（外部文件系统服务器，功能与内置文件工具重复）
+  if (/server-filesystem|\bmodelcontextprotocol\/server-filesystem\b/i.test(sig)) return true
   return false
 }
 async function collectMcpTools(force) {
