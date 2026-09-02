@@ -1,180 +1,164 @@
 # 大肥鱼
 
-> 一只会悬浮在你桌面、能陪你聊天、帮你盯 DeepSeek API 余额、还能本地生图和处理文件的小鲸鱼。
+会悬浮在桌面、陪你聊天、盯 DeepSeek 余额，还能本地分流、生图和生成文件的小鲸鱼桌宠。**没有显卡也能用**（云端聊天 + 余额），有显卡再解锁本地模型 / 生图。
 
 ![演示](assets/demo.gif)
 
-桌宠 + 通用 LLM 对话 + 本地模型分流（省额度）+ 本地生图 + 文件工具。**没有显卡也能用**（DeepSeek 余额 + 云端聊天），有显卡再解锁本地分流/生图。
-
----
-
 ## 功能
 
-**基础（开箱即用，只需填一个 API Key）**
-
-- 透明置顶、Q 弹的小鲸鱼桌面宠物，实时显示 DeepSeek API 余额
-
-- 云端对话（任意 OpenAI 兼容接口：DeepSeek / OpenRouter / SiliconFlow / LM Studio 等）
-
-- 三种对话来源：**Codex**（需装 Codex，能深度干活/审代码）、**本地**（用自己电脑的模型，免费省额度）、**云端**（填 Key 即用）。Codex 模型下拉会自动读取你本机 Codex 配置的模型（不限于 DeepSeek）。
-
-- 可自定义宠物形象、余额名称、缩放、点击穿透、闲置半透明、开机自启等
-
-
-
-**进阶（可选，默认关，不影响基础功能）**
-
-- 本地委派分流：把翻译/总结/润色/写删改/生成 PPT 文档等子任务交给本地模型，节省云端额度
-
-- 本地文件 MCP：在白名单目录内读写、生成 docx / pdf / pptx
-
-- 扩展 MCP（示例已内置）：网络搜索（web-search）、操控浏览器（playwright）、操控 Windows（windows-mcp）——**本地与云端对话都能调用同一套 MCP**
-
-- 本地生图：一键调用 ComfyUI 生成图片；**文本与生图显存自动互斥**（生图时自动停本地文本模型、释放显存，生成完自动恢复），防爆显存
-
-- 剪贴板识图、截屏共享、看图、工具开关、思考开关、显存条
-
-**怎么开进阶功能**：打开对话（`Alt+Q`），在对话框左侧悬浮工具条上点 `🧩`（MCP 工具）和 `⚡分流`；或直接在 `config.json` 里把 `chatMcp`、`chatLocalRoute` 设为 `true`。生图还需先按[配置教程](docs/配置教程.md)配好 ComfyUI。
-
-**哪些装完即用、哪些要自己配**（都在 MCP 工具开关下）：
-
-- ✅ **内置（装完 exe、开启 MCP 即可用，无需额外配置）**：本地生图、文件读写（list/read/write/delete）、生成文档（docx / pdf / pptx / xlsx）。这些由桌宠主程序内建，不依赖外部脚本或占位符。
-- 🔧 **需要额外配置**：网络搜索（web-search）、操控浏览器（playwright）、操控 Windows（windows-mcp）。它们依赖外部命令/依赖（node、npx、uvx 等），需按[配置教程](docs/配置教程.md)「COM: 占位符」一节，在 `config.json` 里把对应 `COM:xxx` 替换成你本机真实路径，并安装所需依赖后才能用。
-
-
-
----
+- **基础**：透明置顶桌宠、DeepSeek 余额显示、云端对话（任意 OpenAI 兼容接口）、自定义形象 / 缩放 / 穿透 / 开机自启
+- **本地分流**：把翻译 / 总结 / 生成文档等交给本地模型，省云端额度
+- **文件工具（内置）**：白名单目录内读写、生成 docx / pdf / pptx / xlsx
+- **生图**：本地 ComfyUI 生成，与文本模型显存互斥防爆显存
+- **剪贴板识图、截屏共享、看图、思考开关、显存条**
 
 ## 快速开始
 
-1. 下载发布版（GitHub Releases），解压到不含中文/空格的路径。
+1. 下载 [Release](https://github.com/whiteball-shiro/blue-whale-agent/releases)，解压到**不含中文/空格**的路径
+2. （可选）运行 `setup.bat`
+3. 右键小鲸鱼 →「设置」→ 填 API Key
+4. 按 `Alt+Q` 打开对话，顶部选「云端」即可；想省额度选「本地」
 
-2. (可选) 运行 `setup.bat` 自动写入配置、注册 Poppler、创建快捷方式。
-
-3. 右键小鲸鱼 →「设置」→ 填入你的 API Key。
-
-4. 打开对话（默认快捷键 `Alt+Q`）→ 顶部选「云端」即可用；想省额度可选「本地」。
-
-> **没有显卡也能用**：只开 DeepSeek 余额 + 云端聊天即可。本地分流/生图是可选进阶功能。
+进阶功能（分流 / MCP / 生图）默认关：开对话后点左侧 `🧩`（MCP）和 `⚡分流`，或在 `config.json` 设 `chatMcp`、`chatLocalRoute` 为 `true`。
 
 ## 快捷键
 
-**全局热键**（桌宠在后台也能用）：
+| 热键 | 作用 |
+| --- | --- |
+| `Alt+Q` | 打开 / 关闭对话（可改） |
+| `Ctrl+Shift+X` | 鼠标穿透 |
+| `Ctrl+Shift+H` | 显示 / 隐藏桌宠 |
+| `Ctrl+Shift+R` | 刷新余额 |
 
-- `Alt+Q` —— 打开 / 关闭对话（默认，可在设置里改成其它组合）
-- `Ctrl+Shift+X` —— 开启 / 关闭鼠标穿透
-- `Ctrl+Shift+H` —— 显示 / 隐藏小鲸鱼（切到托盘 / 后台）
-- `Ctrl+Shift+R` —— 刷新余额 / 状态（需开启「全局热键」总开关）
-
-**对话框内**：
-
-- `Enter` —— 发送；`Shift+Enter` —— 换行（不发送）
-- 关闭按钮，或再按一次 `Alt+Q` —— 关闭对话
-
----
+对话框内：`Enter` 发送，`Shift+Enter` 换行。
 
 ## 配置
 
-> 想从头配置？看「[配置教程](docs/配置教程.md)」——字段说明、云端/本地示例、常见问题都在里面。后面只列要点。
+复制 `config.example.json` 为 `config.json`，按需填：
 
-复制 `config.example.json` 为 `config.json`，按需填写。
+- `apiKey`：DeepSeek Key（余额显示用）
+- `llmBaseUrl` / `llmApiKey` / `llmModel`：任意 OpenAI 兼容云端服务
+- `localBaseUrl`：本地推理地址（默认 LM Studio `http://127.0.0.1:1234/v1`，Ollama 填 `.../11434/v1`）
 
-- **通用 LLM**：填 `llmBaseUrl + llmApiKey + llmModel` 即可接任意 OpenAI 兼容服务，不限于 DeepSeek。
+本地相关（模型路径、白名单等）写在 `chat-workspace\config.local.json`，见 [配置教程](docs/配置教程.md)。
 
-- **余额显示**：默认读取 DeepSeek 的 `https://api.deepseek.com/user/balance`，并按其返回格式解析；`balanceUrl` 可改地址，但需要返回相同结构，因此目前主要针对 DeepSeek（聊天接口才是不绑定的）。
+## MCP 工具
 
-- **本地来源不绑死**：`localBaseUrl` 控制「本地」来源连的本地推理服务地址，支持任意 OpenAI 兼容接口。留空默认用 LM Studio 端口（`http://127.0.0.1:1234/v1`）；想换 Ollama 等填 `http://127.0.0.1:11434/v1` 即可。
+**内置（开 🧩 即用，无需配置）**：文件读写、生成 docx/pdf/pptx/xlsx、生图。
 
-- **本地模型列表**：用 LM Studio 时，桌宠会通过它的 CLI（`lms ls`）列出**磁盘上全部**语言模型（含未加载的），只过滤 embedding；用其它本地服务（Ollama / llama.cpp）时走 `/v1/models` 接口，并过滤 embedding 与明显的脏占位 id（LM Studio 里带 `@` 的 key 是真实模型，不会被过滤）。分流/委派默认取列表里**第一个可用模型**（对话框顶部选中某个模型会记到 `chatModel`，可固定来源）。
+**外部 MCP 需要配**：网络搜索、浏览器（playwright）、Windows 操控、MySQL。在 `config.json` 的 `mcps` 数组里加对应条目，并在 `mcpServersOn` 里设 `true`。
 
-- **本地模型可配置**：`localModelFilter` 控制挑哪个本地模型（默认 qwen，可改 llama/qwen3 等），`localModelPath`/`localModelMmproj` 填你自己模型的路径。
-  - **⚠ 多模态模型要单独放一个文件夹**：LM Studio 是按「同目录」配对 mmproj 的，一个文件夹里混了多套模型/mmproj 会配对错、报 `n_embd mismatch`。所以每个能识图的模型（Gemma / Qwen-VL / LLaVA / InternVL 等），都在模型根目录下建一个独立文件夹，把它的主模型 `.gguf` 和配套 `mmproj-*.gguf` 放一起，别和其它模型混放。
+### 网络搜索（web-search）
 
-- **本地模型目录**：`localModelDir` 用于读取本地 gguf 的上下文上限（防止历史太长卡死），留空则自动从 `localModelPath` 推导。本地进阶所需的 `llmBaseUrl / localWhitelist / workspaceDir` 等建议写在 `chat-workspace\config.local.json`（这个文件含你的本地配置，软件会自动忽略、不会上传到仓库）。
+需要 node + 一个 web-search MCP 入口 js（例如 [web-search-mcp](https://github.com/idosal/agent-client-utils/tree/main/legacy/web-search-mcp)）。
 
-- **进阶特性默认关**：`chatLocalRoute / chatMcp` 默认 false，只有你想省额度/用文件/生图时才打开。
+```json
+{
+  "id": "web-search",
+  "name": "网络搜索",
+  "command": "D:\\nodejs\\node.exe",
+  "args": ["D:\\tools\\web-search-mcp\\dist\\index.js"],
+  "env": {},
+  "localReadOnly": false
+}
+```
 
----
+把 `command` / `args` 换成你本机 node.exe 和入口 js 的真实路径。
+
+### 浏览器（playwright）
+
+需要 Node.js，首次使用会自动拉取 playwright 包。
+
+```json
+{
+  "id": "playwright",
+  "name": "浏览器",
+  "command": "npx",
+  "args": ["@playwright/mcp@latest"],
+  "env": {},
+  "localReadOnly": false
+}
+```
+
+### Windows 操控（windows-mcp）
+
+需要先安装 `uvx`（Python 生态）：
+
+```bash
+pip install uv
+uvx windows-mcp --help
+```
+
+```json
+{
+  "id": "windows-mcp",
+  "name": "Windows 操控",
+  "command": "D:\\Python\\Scripts\\uvx.exe",
+  "args": ["windows-mcp", "serve"],
+  "env": {},
+  "localReadOnly": false
+}
+```
+
+`command` 换成你本机 uvx.exe 的真实路径。
+
+### MySQL（查询 / 增删改）
+
+```json
+{
+  "id": "mysql",
+  "name": "MySQL",
+  "command": "npx",
+  "args": ["-y", "@benborla29/mcp-server-mysql"],
+  "env": {
+    "MYSQL_HOST": "localhost",
+    "MYSQL_PORT": "3306",
+    "MYSQL_USER": "root",
+    "MYSQL_PASS": "你的密码",
+    "MYSQL_DB": "库名",
+    "ALLOW_INSERT_OPERATION": "true",
+    "ALLOW_UPDATE_OPERATION": "true",
+    "ALLOW_DELETE_OPERATION": "false",
+    "ALLOW_DDL_OPERATION": "false"
+  },
+  "localReadOnly": false
+}
+```
+
+> ⚠️ MySQL 写删改不会弹确认框。建议用只读账号，或把 `ALLOW_DELETE_OPERATION` / `ALLOW_DDL_OPERATION` 设为 `false`，切勿对生产库开放删改。
+
+### 开启
+
+把上面某个条目的 `id` 加进 `mcpServersOn` 并设 `true`：
+
+```json
+"mcpServersOn": { "web-search": true, "playwright": true, "windows-mcp": true, "mysql": false }
+```
+
+> ⚠️ playwright / windows-mcp 属高危工具（能开浏览器 / 执行命令），仅在信任的对话来源下开启。
 
 ## 本地进阶（可选）
 
-需要 Node.js 18+，以及（按需）：任意 OpenAI 兼容的本地推理服务（LM Studio / Ollama / llama.cpp / vLLM 等）+ 一个支持工具调用的本地模型、ComfyUI（本地生图）。相关脚本在 `chat-workspace/`，请参照 `chat-workspace\config.local.json.example` 按你的机器填写路径。
+需要 Node.js 18+ 和任意 OpenAI 兼容本地服务（LM Studio / Ollama / llama.cpp 等）+ 支持工具调用的模型；生图还需 ComfyUI。详见 [配置教程](docs/配置教程.md) 的「本地」与「生图」章节。
 
-文本模型与生图（ComfyUI）默认**显存互斥**：生图时会自动停掉本地文本模型、释放显存，生成完毕再恢复文本模型，避免小显存同时跑两个大模型而爆显存、卡死。
-
-恢复文本模型时，优先用 LM Studio 的 `lms`（未配置会自动探测）；如果你不用 LM Studio（例如直接跑 llama.cpp），请在 `config.local.json` 里配置好 `localLlamaExe` 和 `localModelPath`，否则生图后无法恢复文本模型。
-
-**白名单怎么加**：本地文件工具只允许读写你指定的目录。复制 `chat-workspace/config.local.json.example` 为 `chat-workspace/config.local.json`，在 `localWhitelist` 数组里填你想让本地模型访问的目录（如 `["D:\\工作", "C:\\Users\\me\\Documents"]`）。白名单之外的一律拒绝；`COM:WORKSPACE` 等占位符会被自动解析成实际目录。
-
-**MCP 配置说明**：文件读写、生成 docx/pdf/pptx/xlsx、生图是**内置工具**，开 🧩 即可用，无需配置。只有**外部 MCP**（网络搜索、浏览器、Windows 操控、MySQL）要写在主配置 `config.json` 的 `mcps` 数组 + `mcpServersOn` 开关里。`config.example.json` 已给出 web-search、playwright、windows-mcp 三个示例，其余 `COM:` 占位符见[配置教程](docs/配置教程.md)「外部 MCP 工具」一节：
-
-- `COM:NODE_BIN` → 你的 node 可执行文件路径
-- `COM:WEB_SEARCH_MCP` → web-search MCP 的入口 js 路径
-- `COM:UVX_BIN` → uvx 可执行文件路径
-
-`windows-mcp`、`playwright` 是**高危工具**（能执行命令、操控系统/浏览器、跑页面代码），桌宠默认对这类工具**弹确认框 + 写文件前自动备份**，请只在信任的模型来源下开启。MySQL 工具的写删改**不会**弹确认框，详见配置教程安全提示，切勿给生产库开放删改权限。
-
----
-
-## 目录
-
-`resources/` 桌宠主程序源码；`chat-workspace/` 本地委派/文件 MCP/生图脚本与规则；`config.example.json` 配置模板；`setup.bat` 一键安装；`docs/` 说明书（[docs/USAGE.md](docs/USAGE.md) · [配置教程](docs/配置教程.md)）。
-
----
+本地文件工具默认**只允许** `config.local.json` 的 `localWhitelist` 里列出的目录（支持 `COM:WORKSPACE` 等占位符自动解析），白名单外一律拒绝。
 
 ## 安全与合规
 
-- 你的 `config.json` 与 `config.local.json` 含 API Key 和本机路径，请勿上传到公开仓库或分享。
-
-- 本地模型的文件工具仅限白名单目录读写、不能执行终端/联网/数据库；生图与文本模型显存互斥。
-
-- 仅供学习交流，请遵守 DeepSeek / OpenAI / 各开源项目许可与条款；使用风险自负。
-
----
-
-## 跨平台说明
-
-核心桌宠（Electron）可跨平台；`chat-workspace/` 里的本地脚本（PowerShell + GPU）目前为 Windows 专属可选模块，Mac/Linux 上可直接用基础。
-
----
+- `config.json` / `config.local.json` 含 Key 与本机路径，**勿上传公开仓库**
+- 本地文件工具仅白名单内读写，不能执行终端 / 联网 / 数据库
+- 文本模型与生图显存互斥，防止小显存同时跑两个大模型
 
 ## 构建 / 发布
 
-**开发调试**（需要 Node.js 18+，在 `resources/` 目录执行）：
-
 ```bash
 cd resources
-npm install        # 安装 Electron 等依赖
-npx electron .     # 运行桌宠
-```
-
-**打包成 exe**（在 `resources/` 目录执行）：
-
-```bash
-cd resources
-npm i -D electron-builder
+npm install
 npx electron-builder --win
 ```
 
-打包成功后，安装包会生成在 `resources\dist\` 目录下（文件名形如 `deepseek-whale-pet Setup <版本>.exe`），把它上传到 GitHub Release 即可。
+安装包生成在 `resources\dist\`，绿色版在 `resources\dist\win-unpacked\`。
 
-> 免安装绿色版在 `resources\dist\win-unpacked\`，可整套文件夹拷给朋友直接运行。
-> 如果你只是给内网/朋友用，也可以直接复制 `resources/` 目录，用 `npx electron .` 运行，无需打包。
+## 来源与致谢
 
----
-
-## 致谢与来源
-
-本项目是开源衍生作品，遵循 MIT 许可。来源链如下：
-
-- **MeteorNOX / DeepSeek-Balance-Whale-Widget**（MIT，[仓库](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)）—— 最初的 DSH 网页余额挂件。
-- **qijiamin0822 / deepseek-whale-pet**（MIT，[仓库](https://github.com/qijiamin0822/deepseek-whale-pet)）—— 把上述挂件改造成独立桌面桌宠，也是本项目的直接基础。
-- **本仓库（大肥鱼）** —— 在前者的基础上做的泛化改造（通用 LLM、本地委派、文件 MCP、本地生图等）。
-
-> MIT 要求衍生作品保留各上游的版权声明与许可声明，详见 [LICENSE](LICENSE)。
-
-同时感谢 Electron / Poppler / LM Studio / ComfyUI / DeepSeek 等社区项目与所有开源贡献者。
-
-
-
-*使用愉快，让大肥鱼陪你~*
+本仓库是对 [qijiamin0822/deepseek-whale-pet](https://github.com/qijiamin0822/deepseek-whale-pet)（源自 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)）的泛化改造，遵循 MIT。详见 [LICENSE](LICENSE)。感谢 Electron / Poppler / LM Studio / ComfyUI / DeepSeek 等社区。
