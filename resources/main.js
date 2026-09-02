@@ -1096,10 +1096,18 @@ let mcpToolCache = null
 let mcpToolAt = 0
 // 这些功能已由桌宠"内置 MCP"覆盖（whale_*），外部服务器再提供同名工具就会重复，直接跳过
 const BUILTIN_TOOL_SET = new Set(['list_dir', 'read_file', 'write_file', 'delete_file', 'create_docx', 'create_pdf', 'create_pptx', 'create_xlsx', 'generate_image'])
+// 判断某外部服务器是否"纯重复"——它的工具全部被内置覆盖（如 qwen-files 只有文件/文档工具），这类开关不再显示
+function isBuiltinDupServer(def) {
+  if (!def) return false
+  const sig = (def.command || '') + ' ' + ((def.args || []).join(' '))
+  // 现成判断：命令指向 _qwen_mcp_server.mjs（本地文件/文档工具），全被内置覆盖
+  if (/[_\\/]\s*qwen_mcp_server\.mjs/i.test(sig)) return true
+  return false
+}
 async function collectMcpTools(force) {
   if (mcpToolCache && !force && (Date.now() - mcpToolAt) < 30000) return mcpToolCache
   const cfg = loadConfig()
-  const servers = (cfg.mcps || []).filter((def) => !cfg.mcpServersOn || cfg.mcpServersOn[def.id] !== false)
+  const servers = (cfg.mcps || []).filter((def) => (!cfg.mcpServersOn || cfg.mcpServersOn[def.id] !== false) && !isBuiltinDupServer(def))
   const tools = []
   const byName = new Map()
   await Promise.all(servers.map(async (def) => {
@@ -2318,7 +2326,8 @@ ipcMain.handle('chat:get-mcp', async () => {
   const cfg = loadConfig()
   return {
     on: cfg.chatMcp === true,
-    servers: (cfg.mcps || []).map((def) => ({ id: def.id, name: def.name, on: !cfg.mcpServersOn || cfg.mcpServersOn[def.id] !== false })),
+    // 纯重复服务器（工具全被内置覆盖，如 qwen-files）不再显示开关
+    servers: (cfg.mcps || []).filter((def) => !isBuiltinDupServer(def)).map((def) => ({ id: def.id, name: def.name, on: !cfg.mcpServersOn || cfg.mcpServersOn[def.id] !== false })),
   }
 })
 ipcMain.handle('chat:set-mcp', (_e, { on }) => {

@@ -36,12 +36,11 @@
   "chatLocalRoute": false,
   "chatMcp": false,
   "mcps": [
-    { "id": "qwen-files", "name": "本地文件工具", "command": "node", "args": ["COM:CHAT_WORKSPACE/_qwen_mcp_server.mjs"], "env": {}, "localReadOnly": false }
-    ,{ "id": "web-search", "name": "网络搜索", "command": "COM:NODE_BIN", "args": ["COM:WEB_SEARCH_MCP"], "env": {}, "localReadOnly": false }
+    { "id": "web-search", "name": "网络搜索", "command": "COM:NODE_BIN", "args": ["COM:WEB_SEARCH_MCP"], "env": {}, "localReadOnly": false }
     ,{ "id": "playwright", "name": "浏览器", "command": "npx", "args": ["@playwright/mcp@latest"], "env": {}, "localReadOnly": false }
     ,{ "id": "windows-mcp", "name": "Windows 操控", "command": "COM:UVX_BIN", "args": ["windows-mcp", "serve"], "env": {}, "localReadOnly": false }
   ],
-  "mcpServersOn": { "qwen-files": true, "web-search": true, "playwright": true, "windows-mcp": true },
+  "mcpServersOn": { "web-search": true, "playwright": true, "windows-mcp": true },
 
   "llmBaseUrl": "",
   "llmApiKey": "",
