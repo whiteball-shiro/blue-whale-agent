@@ -863,9 +863,31 @@ for col in ws.columns:
 wb.save(out)
 print("OK")
 `
+
+// 解析内置文件工具的路径标记：让模型不用猜桌面/主目录在哪，统一用 [桌面] 等标记，桌宠解析成真实路径
+function resolveBuiltinPath(p) {
+  let s = String(p || '').trim()
+  if (!s) return s
+  try {
+    const desktop = app.getPath('desktop')
+    const home = os.homedir()
+    const ws = chatWorkspace()
+    s = s.replace(/^\[桌面\]/i, desktop)
+      .replace(/^\[desktop\]/i, desktop)
+      .replace(/^\[工作\]/i, ws)
+      .replace(/^\[workspace\]/i, ws)
+      .replace(/^~/i, home)
+      .replace(/^COM:USERHOME/i, home)
+      .replace(/^COM:WORKSPACE/i, ws)
+    // 规范化路径分隔符（[桌面]/a -> E:\Desktop\a）
+    s = path.resolve(s)
+  } catch (e) { /* ignore */ }
+  return s
+}
+
 async function runBuiltinCreateXlsx(args) {
   const a = args || {}
-  const target = String(a.path || a.filePath || '').trim()
+  const target = resolveBuiltinPath(a.path || a.filePath || '')
   if (!target) return { text: '生成 Excel 失败：缺少文件路径 path', isError: true }
   // 只允许写入绝对路径（本地磁盘）
   if (!/^[A-Za-z]:[\\/]/.test(target)) return { text: '生成 Excel 失败：path 必须是本地绝对路径（如 E:\\Desktop\\x.xlsx）', isError: true }
@@ -1001,7 +1023,7 @@ print("OK")
 `
 async function runBuiltinDocTool(args, kind) {
   const a = args || {}
-  const target = String(a.path || a.filePath || '').trim()
+  const target = resolveBuiltinPath(a.path || a.filePath || '')
   if (!target) return { text: '生成文档失败：缺少文件路径 path', isError: true }
   if (!/^[A-Za-z]:[\\/]/.test(target)) return { text: '生成文档失败：path 必须是本地绝对路径', isError: true }
   try { fs.mkdirSync(path.dirname(target), { recursive: true }) } catch (err) { return { text: '生成文档失败：无法创建目录 ' + path.dirname(target) + '：' + err.message, isError: true } }
@@ -1025,7 +1047,7 @@ async function runBuiltinDocTool(args, kind) {
 function runBuiltinFilesystemTool(meta, args) {
   const a = args || {}
   const n = String(meta && meta.toolName || '')
-  const target = String(a.path || '').trim()
+  const target = resolveBuiltinPath(a.path || '')
   if (!target) return { text: '缺少路径 path', isError: true }
   if (n === 'list_dir') {
     try { return { text: fs.readdirSync(target, { withFileTypes: true }).map((e) => (e.isDirectory() ? '[dir] ' : '') + e.name).join('\n') } }
@@ -1199,11 +1221,11 @@ async function collectMcpTools(force) {
     byName.set('whale_create_xlsx', { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: 'create_xlsx', builtin: 'create_xlsx' })
     tools.push({
       name: 'whale_create_xlsx',
-      description: '生成 Excel（.xlsx）表格文件。传 path（保存路径）和 text（每行一条数据、逗号分列、首行是表头），工具自动转成 Excel。',
+      description: '生成 Excel（.xlsx）表格文件。传 path（保存路径）和 text（每行一条数据、逗号分列、首行是表头），工具自动转成 Excel。用户说“保存到桌面/桌面”时，path 填 [桌面]/文件名.xlsx（会自动解析成真实桌面，不要猜盘符）。',
       inputSchema: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: '保存路径（.xlsx）' },
+          path: { type: 'string', description: '保存路径（.xlsx）。用户说桌面就写 [桌面]/文件名.xlsx' },
           text: { type: 'string', description: '表格内容：每行一条数据、逗号分列、首行是表头' },
         },
         required: ['path', 'text'],
@@ -1217,9 +1239,9 @@ async function collectMcpTools(force) {
       { name: 'whale_read_file', desc: '读取文本文件内容', tool: 'read_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
       { name: 'whale_write_file', desc: '创建新文件或覆盖写入已有文本文件', tool: 'write_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' }, content: { type: 'string', description: '要写入的完整文件内容' } }, required: ['path', 'content'] } },
       { name: 'whale_delete_file', desc: '删除单个文件（不允许删除目录）', tool: 'delete_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
-      { name: 'whale_create_docx', desc: '生成 Word 文档（.docx）。仅当用户明确要 Word 文档/文字稿/.docx 时才用。生成 PPT/演示文稿/幻灯片请用 whale_create_pptx。传 path 和 text。', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.docx）' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
-      { name: 'whale_create_pdf', desc: '生成一个 PDF 文档。你只需提供 path（保存路径）和 text（文档文字内容），工具自动生成 PDF，无需你关心格式。', tool: 'create_pdf', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pdf）' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
-      { name: 'whale_create_pptx', desc: '生成 PowerPoint 演示文稿/幻灯片（.pptx）。用户说生成 PPT/演示文稿/幻灯片/讲稿演示时，用这个工具（不要用 Word）。传 path（.pptx 路径）和 text（每页内容用 --- 分隔，每页第一行是标题）。', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pptx）' }, text: { type: 'string', description: '每页内容，页间用 --- 分隔，每页首行为标题' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组（可选）' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_docx', desc: '生成 Word 文档（.docx）。仅当用户明确要 Word 文档/文字稿/.docx 时才用。生成 PPT/演示文稿/幻灯片请用 whale_create_pptx。用户说“保存到桌面/桌面”时 path 填 [桌面]/文件名.docx。传 path 和 text。', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.docx）。用户说桌面就写 [桌面]/文件名.docx' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_pdf', desc: '生成一个 PDF 文档。传 path（保存路径）和 text（文档文字内容），工具自动生成 PDF。用户说“保存到桌面/桌面”时 path 填 [桌面]/文件名.pdf。', tool: 'create_pdf', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pdf）。用户说桌面就写 [桌面]/文件名.pdf' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_pptx', desc: '生成 PowerPoint 演示文稿/幻灯片（.pptx）。用户说生成 PPT/演示文稿/幻灯片/讲稿演示时，用这个工具（不要用 Word）。用户说“保存到桌面/桌面”时 path 填 [桌面]/文件名.pptx。传 path 和 text（每页内容用 --- 分隔，每页第一行是标题）。', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pptx）。用户说桌面就写 [桌面]/文件名.pptx' }, text: { type: 'string', description: '每页内容，页间用 --- 分隔，每页首行为标题' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组（可选）' } }, required: ['path', 'text'] } },
     ]
     for (const t of builtinFileTools) {
       byName.set(t.name, { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: t.tool, builtin: t.tool })
