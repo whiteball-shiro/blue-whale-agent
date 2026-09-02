@@ -1,4 +1,4 @@
-# 深蓝鲸桌宠 GPU 串行切换脚本（泛化版）
+﻿# 深蓝鲸桌宠 GPU 串行切换脚本（泛化版）
 # 用法:
 #   powershell -File whale-gpu.ps1 status                  查看当前状态
 #   powershell -File whale-gpu.ps1 to-text                 只恢复文本模型（llama-server）
@@ -110,16 +110,81 @@ $extraArgs   = Cfg 'localExtraArgs' ''
 # ---- 记录“上次加载的模型”：生图前抓取，生图后恢复同一个 ----
 $lastModelFile = Join-Path $PSScriptRoot '.whale-last-model.json'
 
-function Get-LoadedModelId {
-  # 读正在运行的 llama-server 的 --model 文件名，在 lms ls 里匹配出可 load 的 id
+function Pick-ModelId($m) {
+  if ($m -and $m.indexedModelIdentifier) { return $m.indexedModelIdentifier }
+  if ($m -and $m.modelKey) { return $m.modelKey }
+  return ''
+}
+
+function Get-LmsModels {
+  # lms ls --json 直接管道给 ConvertFrom-Json 会把整组模型包成一个对象（id 变成全部模型名拼接），
+  # 必须先 Out-String 接住再解析，才能拿到真正的模型数组
   try {
-    $proc = Get-CimInstance Win32_Process -Filter "Name='llama-server.exe'" | Select-Object -First 1
-    if (-not $proc -or $proc.CommandLine -notmatch '--model\s+"?([^"]+?\.gguf)"?') { return '' }
-    $fname = [System.IO.Path]::GetFileName($Matches[1])
-    if ($lmsCli) {
-      $list = @(& $lmsCli ls --json 2>$null | ConvertFrom-Json)
+    $raw = & $lmsCli ls --json 2>$null | Out-String
+    if (-not $raw) { return @() }
+    return @($raw | ConvertFrom-Json)
+  } catch { return @() }
+}
+
+function Get-LmsLoadedId {
+  # 当前 LM Studio 正在加载的模型 id（lms ps 是权威来源）；没有则返回空
+  try {
+    $raw = & $lmsCli ps --json 2>$null | Out-String
+    if (-not $raw) { return '' }
+    $list = @($raw | ConvertFrom-Json)
+    foreach ($m in $list) {
+      if ("$($m.type)" -match 'embedding') { continue }
+      if ($m.identifier) { return $m.identifier }
+      if ($m.indexedModelIdentifier) { return $m.indexedModelIdentifier }
+    }
+  } catch { }
+  return ''
+}
+
+function Find-ValidModelId([string]$raw) {
+  # 只返回 lms ls 里真实存在的模型 id；脏数据/找不到一律返回空，绝不把拼接串传给 lms load
+  if (-not $raw -or -not $lmsCli) { return '' }
+  try {
+    $clean = [string]$raw
+    $clean = $clean.Trim()
+    if (-not $clean) { return '' }
+    $list = Get-LmsModels
+    if (-not $list.Count) { return '' }
+    # 1) 完整命中 id / key（LM Studio 的本地模型名可能含空格）
+    $hit = @($list | Where-Object { "$($_.indexedModelIdentifier) $($_.modelKey)" -eq $clean })
+    if ($hit.Count) { return Pick-ModelId $hit[0] }
+    if ($clean -match '\.gguf') {
+      # 带 .gguf 的记录必须只指向一个文件；多个文件拼在一起的脏串直接丢弃
+      if (([regex]::Matches($clean, '\.gguf')).Count -ne 1) { return '' }
+      $fname = [regex]::Match($clean, '([^\\/]+\.gguf)\s*$').Groups[1].Value
       $hit = @($list | Where-Object { "$($_.indexedModelIdentifier) $($_.path) $($_.modelKey) $($_.displayName)" -match [regex]::Escape($fname) })
-      if ($hit.Count) { if ($hit[0].indexedModelIdentifier) { return $hit[0].indexedModelIdentifier } else { return $hit[0].modelKey } }
+      if ($hit.Count) { return Pick-ModelId $hit[0] }
+      return ''
+    }
+    # 2) 目录/短名（如 gemma-4-26b-vision）：按路径词命中
+    $re = '(^|[\\/])' + [regex]::Escape($clean) + '([\\/]|$)'
+    $hit = @($list | Where-Object { "$($_.indexedModelIdentifier) $($_.modelKey) $($_.displayName) $($_.path)" -match $re })
+    if ($hit.Count) { return Pick-ModelId $hit[0] }
+    return ''
+  } catch { return '' }
+}
+
+function Get-LoadedModelId {
+  # 逐个看正在运行的 llama-server，返回能映射到 lms 模型列表的 id；找不到返回空
+  try {
+    # 1) LM Studio 正在加载的模型优先（最准确）
+    $viaPs = Get-LmsLoadedId
+    if ($viaPs) { return $viaPs }
+    # 2) 兜底：从 llama-server 命令行解析
+    $procs = @(Get-CimInstance Win32_Process -Filter "Name='llama-server.exe'")
+    if (-not $procs.Count) { return '' }
+    if (-not $lmsCli) { return '' }
+    foreach ($p in $procs) {
+      if (-not $p.CommandLine) { continue }
+      if ($p.CommandLine -notmatch '--model\s+("[^"]+"|[^\s]+)') { continue }
+      $raw = $Matches[1].Trim('"')
+      $valid = Find-ValidModelId $raw
+      if ($valid) { return $valid }
     }
     return ''
   } catch { return '' }
@@ -138,6 +203,17 @@ function Test-Port([int]$port) {
 function Wait-Port([int]$port, [int]$seconds) {
   for ($i = 0; $i -lt $seconds; $i += 2) { if (Test-Port $port) { return $true }; Start-Sleep -Seconds 2 }
   return (Test-Port $port)
+}
+
+function Wait-ProcExited($proc, [int]$seconds) {
+  # 等待进程退出；超时返回 $false。Wait-Process 在成功/超时时都不输出，没法判断结果，所以手动轮询
+  $deadline = (Get-Date).AddSeconds($seconds)
+  while ($true) {
+    try { $proc.Refresh() } catch { return $true }
+    if ($proc.HasExited) { return $true }
+    if ((Get-Date) -gt $deadline) { return $false }
+    Start-Sleep -Seconds 2
+  }
 }
 
 function Get-LlamaPorts {
@@ -196,7 +272,25 @@ function Get-Vram {
 }
 
 function Stop-TextModel {
-  Write-LastModelId (Get-LoadedModelId)
+  $id = Get-LoadedModelId
+  if ($id) { Write-LastModelId $id } else { Write-LastModelId '' }
+  # LM Studio 托管的模型先优雅卸载，避免直接强杀后 lms 状态残留、恢复时卡住
+  $managed = $false
+  try {
+    $servers = @(Get-CimInstance Win32_Process -Filter "Name='llama-server.exe'")
+    foreach ($s in $servers) {
+      $par = Get-CimInstance Win32_Process -Filter "ProcessId=$($s.ParentProcessId)" -ErrorAction SilentlyContinue
+      if ($par -and $par.Name -eq 'LM Studio.exe') { $managed = $true; break }
+    }
+  } catch { }
+  if ($managed -and $lmsCli) {
+    try {
+      Write-Host 'unloading text model via lms (graceful)'
+      $up = Start-Process -FilePath $lmsCli -ArgumentList @('unload', '--all') -WindowStyle Hidden -PassThru
+      $null = Wait-ProcExited $up 30
+    } catch { }
+    Start-Sleep -Seconds 2
+  }
   $procs = Get-Process -Name llama-server -ErrorAction SilentlyContinue
   if ($procs) { $procs | Stop-Process -Force; Write-Host "text model stopped ($($procs.Count) process)" } else { Write-Host 'text model not running' }
   Start-Sleep -Seconds 3
@@ -209,26 +303,34 @@ function Start-TextModel {
 
   # 优先用 lms（LM Studio）恢复，最通用
   if ($lmsCli) {
-    $model = Read-LastModelId
-    if (-not $model) { $model = $modelId }
+    # 上次记录的模型必须校验真实存在（脏串会被丢弃），否则退回配置里的默认模型
+    $model = Find-ValidModelId (Read-LastModelId)
+    if (-not $model) { $model = Find-ValidModelId $modelId }
     if (-not $model) {
       try {
-        $list = @(& $lmsCli ls --json 2>$null | ConvertFrom-Json)
+        $list = Get-LmsModels
         $llms = @($list | Where-Object { "$($_.type)".ToLower() -notmatch 'embedding' })
-        $filter = Cfg 'localModelFilter' 'qwen'
+        $filter = Cfg 'localModelFilter' ''
         $cand = @($llms | Where-Object { $k = "$($_.indexedModelIdentifier) $($_.path) $($_.modelKey) $($_.displayName)"; (-not $filter) -or ($k -match [regex]::Escape($filter)) })
         if ($cand.Count) { $model = if ($cand[0].indexedModelIdentifier) { $cand[0].indexedModelIdentifier } else { $cand[0].modelKey } }
       } catch { }
     }
     if ($model) {
       Write-Host "restoring text model via lms: $model"
-      & $lmsCli server start | Out-Null
-      & $lmsCli load $model | Out-Host
+      $sp = Start-Process -FilePath $lmsCli -ArgumentList @('server', 'start') -WindowStyle Hidden -PassThru
+      $null = Wait-ProcExited $sp 30
+      # 模型 id 含空格，Start-Process -ArgumentList 数组会把空格拆成多个参数（lms 报 too many arguments），必须整体加引号
+      $lp = Start-Process -FilePath $lmsCli -ArgumentList ('load "' + $model + '"') -WindowStyle Hidden -PassThru
+      if (-not (Wait-ProcExited $lp 300)) {
+        Write-Host 'lms load timed out; killing it'
+        Stop-Process -Id $lp.Id -Force -ErrorAction SilentlyContinue
+      }
       Start-Sleep -Seconds 2
       $up = @(Get-LlamaPorts | Where-Object { Test-Port $_ })
       if ($up.Count) { Write-Host "text model restored (port $($up -join ','))"; return }
       Write-Host 'lms restore did not bring up a server; falling back to direct launch'
     }
+    else { Write-Host 'no usable model id found via lms; falling back to direct launch' }
   }
 
   # ---- 直启 llama-server（兜底） ----

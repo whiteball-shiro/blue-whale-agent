@@ -788,6 +788,40 @@ async function confirmDangerousTool(meta, args) {
   })
   return r.response === 0
 }
+
+// 生图必须在后台跑，绝不能用 execFileSync 堵住主进程（否则整只桌宠“假死”几分钟）
+function killProcessTree(pid) {
+  try { spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }) } catch (err) { /* ignore */ }
+}
+
+function runGenerateImageProcess(script, psArgs, out) {
+  return new Promise((resolve) => {
+    const cp = spawn('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script].concat(psArgs), { windowsHide: true })
+    let buf = ''
+    let settled = false
+    const fin = (text, isError) => {
+      if (settled) return
+      settled = true
+      try { clearTimeout(timer) } catch (err) { /* ignore */ }
+      resolve({ text, isError })
+    }
+    const timer = setTimeout(() => {
+      killProcessTree(cp.pid)
+      const hasImg = fs.existsSync(out) && fs.statSync(out).size > 0
+      fin(hasImg ? '生图完成：' + out + '\n（图片已生成，但恢复文本模型超时，请稍后手动恢复本地模型）' : '生图失败：等待 10 分钟仍无结果，已停止生图进程', !hasImg)
+    }, 600000)
+    cp.stdout.on('data', (d) => { buf += String(d); if (buf.length > 4096) buf = buf.slice(-2048) })
+    cp.stderr.on('data', (d) => { buf += String(d); if (buf.length > 4096) buf = buf.slice(-2048) })
+    cp.on('error', (err) => fin('生图失败：' + String(err && err.message || err), true))
+    cp.on('close', () => {
+      let hasImg = false
+      try { hasImg = fs.existsSync(out) && fs.statSync(out).size > 0 } catch (err) { /* ignore */ }
+      if (hasImg) fin('生图完成：' + out + (buf ? '\n' + String(buf).trim().slice(0, 300) : ''), false)
+      else fin('生图失败：' + (String(buf).trim() || '生图进程异常退出'), true)
+    })
+  })
+}
+
 async function runBuiltinGenerateImage(args) {
   const a = args || {}
   const prompt = String(a.prompt || '').trim()
@@ -796,18 +830,10 @@ async function runBuiltinGenerateImage(args) {
   const height = Math.max(256, Math.min(1024, parseInt(a.height, 10) || 512))
   const steps = Math.max(4, Math.min(40, parseInt(a.steps, 10) || 12))
   const ws = chatWorkspace()
-  const candidates = [
-    path.join(ws, 'whale-gpu.ps1'),
-  ]
-  let script = candidates.find((p) => fs.existsSync(p))
-  if (!script) return { text: '生图失败：找不到 whale-gpu.ps1，请先配置本地 ComfyUI 环境', isError: true }
+  const script = path.join(ws, 'whale-gpu.ps1')
+  if (!fs.existsSync(script)) return { text: '生图失败：找不到 whale-gpu.ps1，请先配置本地 ComfyUI 环境', isError: true }
   const out = path.join(ws, 'whale-img-' + Date.now() + '.png')
-  try {
-    const o = execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, 'generate', prompt, '-Out', out, '-Width', String(width), '-Height', String(height), '-Steps', String(steps)], { encoding: 'utf8', windowsHide: true, timeout: 300000 })
-    return { text: '生图完成：' + out + (o ? '\n' + String(o).trim().slice(0, 300) : '') }
-  } catch (err) {
-    return { text: '生图失败：' + String(err && err.message || err), isError: true }
-  }
+  return await runGenerateImageProcess(script, ['generate', prompt, '-Out', out, '-Width', String(width), '-Height', String(height), '-Steps', String(steps)], out)
 }
 
 // 内置 Excel 工具：不依赖外部 MCP 服务器，用本机 Python + openpyxl 直接生成 xlsx
