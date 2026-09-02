@@ -724,6 +724,7 @@ const LOCAL_READ_TOOL_RE = /^(get|list|read|search|select|show|describe|desc|cou
 function isLocalSafeTool(t) {
   const n = String((t && (t.toolName || t.name)) || '')
   if (n === 'whale_generate_image' || n === 'generate_image') return true // 内置生图工具：白名单放行（执行时另有确认）
+  if (n === 'whale_create_xlsx' || n === 'create_xlsx') return true // 内置 Excel 工具：白名单放行（执行时用 Python 生成 xlsx）
   if (LOCAL_WRITE_TOOL_RE.test(n)) return false
   if (LOCAL_GENERIC_TOOL_RE.test(n)) return true // 通用执行器放行，执行前做语句级只读校验
   return LOCAL_READ_TOOL_RE.test(n)
@@ -804,6 +805,85 @@ async function runBuiltinGenerateImage(args) {
     return { text: '生图失败：' + String(err && err.message || err), isError: true }
   }
 }
+
+// 内置 Excel 工具：不依赖外部 MCP 服务器，用本机 Python + openpyxl 直接生成 xlsx
+const BUILTIN_XLSX_PY = `# -*- coding: utf-8 -*-
+import json, sys, os
+from pathlib import Path
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+out = payload["out"]
+rows = payload.get("rows")
+text = payload.get("text", "")
+if not isinstance(rows, list):
+    rows = []
+    for ln in str(text).splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        if "\\t" in ln:
+            rows.append([c.strip() for c in ln.split("\\t")])
+        elif "," in ln:
+            rows.append([c.strip() for c in ln.split(",")])
+        else:
+            rows.append([ln])
+has_header = bool(payload.get("header", True))
+wb = Workbook()
+ws = wb.active
+ws.title = "Sheet1"
+fill = PatternFill(start_color="FF1F3864", end_color="FF1F3864", fill_type="solid")
+head_font = Font(bold=True, color="FFFFFFFF")
+thin = Side(style="thin", color="FFCCCCCC")
+border = Border(left=thin, right=thin, top=thin, bottom=thin)
+for r_idx, row in enumerate(rows):
+    cells = list(row) if isinstance(row, (list, tuple)) else [row]
+    for c_idx, val in enumerate(cells):
+        cell = ws.cell(row=r_idx + 1, column=c_idx + 1, value=val)
+        cell.border = border
+        cell.alignment = Alignment(vertical="center")
+        if has_header and r_idx == 0:
+            cell.font = head_font
+            cell.fill = fill
+            cell.alignment = Alignment(vertical="center", horizontal="center")
+for col in ws.columns:
+    max_len = 0
+    for cell in col:
+        v = cell.value
+        if v is not None:
+            s = str(v)
+            max_len = max(max_len, sum(2 if ord(ch) > 127 else 1 for ch in s))
+    if max_len:
+        ws.column_dimensions[col[0].column_letter].width = min(max(max_len * 1.2, 8), 50)
+wb.save(out)
+print("OK")
+`
+async function runBuiltinCreateXlsx(args) {
+  const a = args || {}
+  const target = String(a.path || a.filePath || '').trim()
+  if (!target) return { text: '生成 Excel 失败：缺少文件路径 path', isError: true }
+  // 只允许写入绝对路径（本地磁盘）
+  if (!/^[A-Za-z]:[\\/]/.test(target)) return { text: '生成 Excel 失败：path 必须是本地绝对路径（如 E:\\Desktop\\x.xlsx）', isError: true }
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+  } catch (err) { return { text: '生成 Excel 失败：无法创建目录 ' + path.dirname(target) + '：' + err.message, isError: true } }
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-xlsx-'))
+  const inJson = path.join(tmp, 'input.json')
+  const script = path.join(tmp, 'build_xlsx.py')
+  const payload = { out: target, rows: Array.isArray(a.rows) ? a.rows : undefined, text: String(a.text ?? ''), header: a.header !== false }
+  try {
+    fs.writeFileSync(inJson, JSON.stringify(payload), 'utf8')
+    fs.writeFileSync(script, BUILTIN_XLSX_PY, 'utf8')
+    const res = execFileSync('python', [script, inJson], { encoding: 'utf8', windowsHide: true, timeout: 60000 })
+    return { text: '已创建 ' + target + (res ? '\n' + String(res).trim().slice(0, 200) : '') }
+  } catch (err) {
+    return { text: '生成 Excel 失败：' + String(err && err.message || err).slice(0, 500), isError: true }
+  } finally {
+    try { fs.rmSync(tmp, { recursive: true, force: true }) } catch (err) { /* ignore */ }
+  }
+}
+
 // 写/删操作前：把目标文件备份到 chat-workspace/backups，供出问题回滚
 const BACKUP_WRITE_TOOL = /(write_file|overwrite|delete_file|remove_file|unlink|rmdir|create_docx|create_pdf|create_pptx|rename|move|copy)/i
 function backupBeforeWrite(meta, args) {
@@ -830,6 +910,10 @@ async function execMcpToolCall(meta, def, args) {
     const ok = await confirmDangerousTool({ toolName: 'generate_image' }, args)
     if (!ok) return { text: '（用户已取消生图）', isError: true }
     return await runBuiltinGenerateImage(args)
+  }
+  // 内置 Excel 工具：直接用本机 Python + openpyxl 生成 xlsx
+  if (meta && meta.builtin === 'create_xlsx') {
+    return await runBuiltinCreateXlsx(args)
   }
   // 写/删操作：先备份目标文件
   const bak = backupBeforeWrite(meta, args)
@@ -926,6 +1010,24 @@ async function collectMcpTools(force) {
       },
       on: true,
       serverId: '__builtin__', serverName: '内置', toolName: 'generate_image',
+    })
+    // 内置 Excel 工具：不依赖外部 MCP 服务器，直接生成 xlsx（用本机 Python + openpyxl，装好即用）
+    byName.set('whale_create_xlsx', { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: 'create_xlsx', builtin: 'create_xlsx' })
+    tools.push({
+      name: 'whale_create_xlsx',
+      description: '在指定路径创建 Excel 表格（.xlsx）。用 rows 传二维数组（如 [["姓名","年龄"],["张三",20]]），第一行默认作为表头加粗；header=false 时则所有行都是普通数据。也可用 text 传多行文本，遇 Tab 或逗号自动分列。',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: '文件路径（.xlsx）' },
+          rows: { type: 'array', items: { type: 'array', items: {}, description: '每一行是一个数组，元素为单元格值' }, description: '二维数组，第一行默认作表头' },
+          text: { type: 'string', description: '多行文本，遇 Tab 或逗号分列（与 rows 二选一）' },
+          header: { type: 'boolean', description: '是否把第一行当作表头加粗，默认 true' },
+        },
+        required: ['path'],
+      },
+      on: true,
+      serverId: '__builtin__', serverName: '内置', toolName: 'create_xlsx',
     })
   }
   mcpToolCache = { tools, byName }
