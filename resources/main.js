@@ -1259,10 +1259,16 @@ async function runLmStudio(conv, model, imagePath, onDelta, onDone, onStatus) {
         const meta = byName.get(tc.name)
         if (meta) {
           try {
-            const def = (loadConfig().mcps || []).find((d) => d.id === meta.serverId)
-            if (def) {
-              const r = await execMcpToolCall(meta, def, tc.args)
+            if (meta.serverId === '__builtin__') {
+              // 内置工具（生图/Excel/文件/文档）：不依赖外部 mcps 服务器，直接执行
+              const r = await execMcpToolCall(meta, null, tc.args)
               result = (r && r.text) || ''
+            } else {
+              const def = (loadConfig().mcps || []).find((d) => d.id === meta.serverId)
+              if (def) {
+                const r = await execMcpToolCall(meta, def, tc.args)
+                result = (r && r.text) || ''
+              } else result = '工具服务器未配置'
             }
           } catch (err) { result = '工具调用失败：' + String(err && err.message || err) }
         } else { result = '未知工具' }
@@ -1932,10 +1938,16 @@ async function runLlm(conv, model, imagePath, onDelta, onDone, onStatus) {
         const meta = byName.get(tc.name)
         if (meta) {
           try {
-            const def = (loadConfig().mcps || []).find((d) => d.id === meta.serverId)
-            if (def) {
-              const r = await execMcpToolCall(meta, def, tc.args)
+            if (meta.serverId === '__builtin__') {
+              // 内置工具（生图/Excel/文件/文档）：不依赖外部 mcps 服务器，直接执行
+              const r = await execMcpToolCall(meta, null, tc.args)
               result = (r && r.text) || ''
+            } else {
+              const def = (loadConfig().mcps || []).find((d) => d.id === meta.serverId)
+              if (def) {
+                const r = await execMcpToolCall(meta, def, tc.args)
+                result = (r && r.text) || ''
+              } else result = '工具服务器未配置'
             }
           } catch (err) { result = '工具调用失败：' + String(err && err.message || err) }
         } else { result = '未知工具' }
