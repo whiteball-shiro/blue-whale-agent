@@ -951,7 +951,7 @@ elif kind == "pptx":
         for seg in raw.split('---'):
             seg_lines = [ln.strip() for ln in seg.splitlines() if ln.strip()]
             if seg_lines:
-                pages.append('\n'.join(seg_lines))
+                pages.append('\\n'.join(seg_lines))
         if not pages and raw.strip():
             pages = [raw.strip()]
     if not pages:
@@ -1217,9 +1217,9 @@ async function collectMcpTools(force) {
       { name: 'whale_read_file', desc: '读取文本文件内容', tool: 'read_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
       { name: 'whale_write_file', desc: '创建新文件或覆盖写入已有文本文件', tool: 'write_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' }, content: { type: 'string', description: '要写入的完整文件内容' } }, required: ['path', 'content'] } },
       { name: 'whale_delete_file', desc: '删除单个文件（不允许删除目录）', tool: 'delete_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
-      { name: 'whale_create_docx', desc: '生成一个 Word 文档（.docx）。你只需提供 path（保存路径）和 text（文档文字内容），工具自动生成 Word 文件，无需你关心格式。', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.docx）' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_docx', desc: '生成 Word 文档（.docx）。仅当用户明确要 Word 文档/文字稿/.docx 时才用。生成 PPT/演示文稿/幻灯片请用 whale_create_pptx。传 path 和 text。', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.docx）' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
       { name: 'whale_create_pdf', desc: '生成一个 PDF 文档。你只需提供 path（保存路径）和 text（文档文字内容），工具自动生成 PDF，无需你关心格式。', tool: 'create_pdf', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pdf）' }, text: { type: 'string', description: '文档正文内容' } }, required: ['path', 'text'] } },
-      { name: 'whale_create_pptx', desc: '生成一个 PowerPoint（.pptx）演示文稿。你只需提供 path（保存路径）和 text（每页内容，页之间用空行或 --- 分隔，每页第一行是标题），工具自动生成 PPT，无需你关心格式。', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pptx）' }, text: { type: 'string', description: '每页内容，页间用空行/--- 分隔' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组（可选）' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_pptx', desc: '生成 PowerPoint 演示文稿/幻灯片（.pptx）。用户说生成 PPT/演示文稿/幻灯片/讲稿演示时，用这个工具（不要用 Word）。传 path（.pptx 路径）和 text（每页内容用 --- 分隔，每页第一行是标题）。', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '保存路径（.pptx）' }, text: { type: 'string', description: '每页内容，页间用 --- 分隔，每页首行为标题' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组（可选）' } }, required: ['path', 'text'] } },
     ]
     for (const t of builtinFileTools) {
       byName.set(t.name, { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: t.tool, builtin: t.tool })
