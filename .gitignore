@@ -40,6 +40,8 @@ _precheck-bak/
 *.bak-xlsx-*
 *.bak-scrapping-*
 resources/dist-old-bak-*/
+_moved-out/
+*.bak-mysql-*
 
 # 本地运行时状态（记录上次加载的模型）
 chat-workspace/.whale-last-model.json
