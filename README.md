@@ -36,6 +36,11 @@
 
 **怎么开进阶功能**：打开对话（`Alt+Q`），在对话框左侧悬浮工具条上点 `🧩`（MCP 工具）和 `⚡分流`；或直接在 `config.json` 里把 `chatMcp`、`chatLocalRoute` 设为 `true`。生图还需先按[配置教程](docs/配置教程.md)配好 ComfyUI。
 
+**哪些装完即用、哪些要自己配**（都在 MCP 工具开关下）：
+
+- ✅ **内置（装完 exe、开启 MCP 即可用，无需额外配置）**：本地生图、文件读写（list/read/write/delete）、生成文档（docx / pdf / pptx / xlsx）。这些由桌宠主程序内建，不依赖外部脚本或占位符。
+- 🔧 **需要额外配置**：网络搜索（web-search）、操控浏览器（playwright）、操控 Windows（windows-mcp）。它们依赖外部命令/依赖（node、npx、uvx 等），需按[配置教程](docs/配置教程.md)「COM: 占位符」一节，在 `config.json` 里把对应 `COM:xxx` 替换成你本机真实路径，并安装所需依赖后才能用。
+
 
 
 ---
