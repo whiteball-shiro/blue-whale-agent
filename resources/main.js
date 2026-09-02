@@ -970,18 +970,69 @@ elif kind == "pptx":
         pages = [str(x) for x in slides_text]
     else:
         raw = str(text)
+        # 先按 --- 或连续空行切块；再按单个空行细分，尽力还原模型想表达的"每页"
         for seg in raw.split('---'):
-            seg_lines = [ln.strip() for ln in seg.splitlines() if ln.strip()]
-            if seg_lines:
-                pages.append('\\n'.join(seg_lines))
+            blocks = [b.strip() for b in seg.split(chr(10) * 2) if b.strip()]
+            if not blocks:
+                blocks = [seg.strip()]
+            for blk in blocks:
+                if blk.strip():
+                    pages.append(blk.strip())
         if not pages and raw.strip():
             pages = [raw.strip()]
     if not pages:
         pages = [""]
-    for idx, page in enumerate(pages, start=1):
-        lines = [ln.strip() for ln in str(page).splitlines() if ln.strip()]
-        title = lines[0] if lines else ("第" + str(idx) + "页")
-        body_items = lines[1:]
+    # 二次切分：仅当整段 text 完全没有分段线索（没有空行/换行/---，模型把全部内容挤成一行）时，
+    # 才按常见标点拆成多页；已有空行/--- 分段的页不再强行拆碎。
+    refined = []
+    if len(pages) <= 1 and len(str(text).strip()) > 90 and chr(10) not in str(text) and "---" not in str(text):
+        one = str(text).strip()
+        import re as _re
+        parts = _re.split(r'(?<=[。；;])', one)
+        cur = ""
+        bucket = []
+        for pt in parts:
+            pt = pt.strip()
+            if not pt:
+                continue
+            if len(cur) + len(pt) > 70 and cur:
+                bucket.append(cur)
+                cur = pt
+            else:
+                cur = (cur + " " + pt).strip()
+        if cur:
+            bucket.append(cur)
+        refined = bucket
+    else:
+        refined = [str(x).strip() for x in pages if str(x).strip()]
+    if not refined:
+        refined = [""]
+    for idx, page in enumerate(refined, start=1):
+        # 智能取标题：若第一行是 “短主题：长内容”，拆成标题 + 正文；否则第一行当标题（过长则截断）
+        raw_title = ""
+        body_items = []
+        first_splits = [ln.strip() for ln in str(page).splitlines() if ln.strip()]
+        if first_splits:
+            first = first_splits[0]
+            if "：" in first or ":" in first:
+                sep = "：" if "：" in first else ":"
+                head, tail = first.split(sep, 1)
+                head = head.strip()
+                if len(head) <= 14 and len(tail.strip()) > 0:
+                    raw_title = head
+                    body_items = [tail.strip()] + first_splits[1:]
+                else:
+                    raw_title = first[:16]
+                    body_items = first_splits[1:]
+            else:
+                raw_title = first
+                body_items = first_splits[1:]
+        # 标题若太长则截断（避免整段进标题条）
+        title = raw_title if len(raw_title) <= 18 else (raw_title[:18] + "…")
+        if not title:
+            title = "第" + str(idx) + "页"
+        if not body_items and len(first_splits) > 1:
+            body_items = first_splits[1:]
         slide = prs.slides.add_slide(blank)
         # 顶部标题色带
         band = slide.shapes.add_shape(1, 0, 0, prs.slide_width, Inches(1.2))
@@ -1014,7 +1065,7 @@ elif kind == "pptx":
         # 页码
         pn = slide.shapes.add_textbox(prs.slide_width - Inches(1.6), prs.slide_height - Inches(0.6), Inches(1.2), Inches(0.4))
         pfp = pn.text_frame.paragraphs[0]; pfp.alignment = PP_ALIGN.RIGHT
-        pr_ = pfp.add_run(); pr_.text = str(idx) + " / " + str(len(pages))
+        pr_ = pfp.add_run(); pr_.text = str(idx) + " / " + str(len(refined))
         pr_.font.size = Pt(12); pr_.font.color.rgb = GRAY
     prs.save(out)
 else:
