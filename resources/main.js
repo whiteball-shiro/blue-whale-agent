@@ -723,6 +723,8 @@ const LOCAL_READ_TOOL_RE = /^(get|list|read|search|select|show|describe|desc|cou
 
 function isLocalSafeTool(t) {
   const n = String((t && (t.toolName || t.name)) || '')
+  // 所有 whale_ 前缀都是内置工具（生图/Excel/文件读写/文档生成），白名单放行——内置逻辑自带安全校验与确认
+  if (/^whale_/.test(n)) return true
   if (n === 'whale_generate_image' || n === 'generate_image') return true // 内置生图工具：白名单放行（执行时另有确认）
   if (n === 'whale_create_xlsx' || n === 'create_xlsx') return true // 内置 Excel 工具：白名单放行（执行时用 Python 生成 xlsx）
   if (LOCAL_WRITE_TOOL_RE.test(n)) return false
@@ -884,6 +886,121 @@ async function runBuiltinCreateXlsx(args) {
   }
 }
 
+// 内置文档构建：docx / pdf / pptx 用一个内嵌 Python 脚本生成（复用 python-docx / reportlab / python-pptx）
+const BUILTIN_DOC_PY = `# -*- coding: utf-8 -*-
+import json, sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+kind = payload["kind"]
+out = payload["out"]
+text = payload.get("text", "")
+slides = max(1, int(payload.get("slides") or 1))
+if kind == "docx":
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+    from docx.shared import Inches, Pt
+    doc = Document()
+    sec = doc.sections[0]
+    sec.page_width = Inches(8.5); sec.page_height = Inches(11)
+    for a in ("top_margin","right_margin","bottom_margin","left_margin"):
+        setattr(sec, a, Inches(1))
+    normal = doc.styles["Normal"]
+    normal.font.name = "Calibri"; normal.font.size = Pt(11)
+    pf = normal.paragraph_format
+    pf.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    pf.space_before = Pt(0); pf.space_after = Pt(6)
+    pf.line_spacing = 1.25; pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+    doc.add_paragraph(text)
+    doc.save(out)
+elif kind == "pdf":
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Paragraph, SimpleDocTemplate
+    try: pdfmetrics.registerFont(TTFont("Calibri", r"C:\\Windows\\Fonts\\calibri.ttf"))
+    except Exception: pdfmetrics.registerFont(TTFont("Calibri", r"C:\\Windows\\Fonts\\arial.ttf"))
+    style = ParagraphStyle("Body", fontName="Calibri", fontSize=11, leading=11*1.25, spaceBefore=0, spaceAfter=6, alignment=0)
+    doc = SimpleDocTemplate(out, pagesize=letter, leftMargin=1*inch, rightMargin=1*inch, topMargin=1*inch, bottomMargin=1*inch, title=text)
+    doc.build([Paragraph(text, style)])
+elif kind == "pptx":
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    slides_text = payload.get("slides_text")
+    per_slide = isinstance(slides_text, list) and len(slides_text) > 0
+    prs = Presentation()
+    blank = prs.slide_layouts[6]
+    if per_slide:
+        for page in slides_text:
+            lines = [ln.strip() for ln in str(page).splitlines() if ln.strip()]
+            title = lines[0] if lines else "幻灯片"
+            slide = prs.slides.add_slide(blank)
+            tb = slide.shapes.add_textbox(Inches(1), Inches(0.5), Inches(8), Inches(0.8))
+            p = tb.text_frame.paragraphs[0]; r = p.add_run(); r.text = title; r.font.size = Pt(32); r.font.bold = True
+            body = slide.shapes.add_textbox(Inches(1), Inches(1.8), Inches(8), Inches(4))
+            bf = body.text_frame; bf.word_wrap = True
+            for j, item in enumerate(lines[1:]):
+                p2 = bf.paragraphs[0] if j == 0 else bf.add_paragraph(); r2 = p2.add_run(); r2.text = "•  " + item.lstrip("- "); r2.font.size = Pt(18)
+    else:
+        for _ in range(slides):
+            slide = prs.slides.add_slide(blank)
+            tb = slide.shapes.add_textbox(Inches(1), Inches(2.75), Inches(8), Inches(2))
+            tf = tb.text_frame; tf.word_wrap = False
+            p = tf.paragraphs[0]; p.alignment = 1
+            run = p.add_run(); run.text = text; run.font.size = Pt(72); run.font.bold = True; run.font.name = "Calibri"
+    prs.save(out)
+else:
+    raise SystemExit("unknown kind: " + kind)
+print("OK")
+`
+async function runBuiltinDocTool(args, kind) {
+  const a = args || {}
+  const target = String(a.path || a.filePath || '').trim()
+  if (!target) return { text: '生成文档失败：缺少文件路径 path', isError: true }
+  if (!/^[A-Za-z]:[\\/]/.test(target)) return { text: '生成文档失败：path 必须是本地绝对路径', isError: true }
+  try { fs.mkdirSync(path.dirname(target), { recursive: true }) } catch (err) { return { text: '生成文档失败：无法创建目录 ' + path.dirname(target) + '：' + err.message, isError: true } }
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-doc-'))
+  const inJson = path.join(tmp, 'input.json')
+  const script = path.join(tmp, 'build_doc.py')
+  const payload = { kind, out: target, text: String(a.text ?? ''), slides: Math.max(1, parseInt(a.slides, 10) || 1), slides_text: Array.isArray(a.slides_text) ? a.slides_text.map(String) : undefined }
+  try {
+    fs.writeFileSync(inJson, JSON.stringify(payload), 'utf8')
+    fs.writeFileSync(script, BUILTIN_DOC_PY, 'utf8')
+    const res = execFileSync('python', [script, inJson], { encoding: 'utf8', windowsHide: true, timeout: 60000 })
+    return { text: '已创建 ' + target + (res ? '\n' + String(res).trim().slice(0, 200) : '') }
+  } catch (err) {
+    return { text: '生成文档失败：' + String(err && err.message || err).slice(0, 500), isError: true }
+  } finally {
+    try { fs.rmSync(tmp, { recursive: true, force: true }) } catch (err) { /* ignore */ }
+  }
+}
+
+// 内置文件系统工具：本机磁盘读写，零依赖
+function runBuiltinFilesystemTool(meta, args) {
+  const a = args || {}
+  const n = String(meta && meta.toolName || '')
+  const target = String(a.path || '').trim()
+  if (!target) return { text: '缺少路径 path', isError: true }
+  if (n === 'list_dir') {
+    try { return { text: fs.readdirSync(target, { withFileTypes: true }).map((e) => (e.isDirectory() ? '[dir] ' : '') + e.name).join('\n') } }
+    catch (err) { return { text: '列目录失败：' + err.message, isError: true } }
+  }
+  if (n === 'read_file') {
+    try { return { text: String(fs.readFileSync(target, 'utf8')).slice(0, 4000) } }
+    catch (err) { return { text: '读文件失败：' + err.message, isError: true } }
+  }
+  if (n === 'write_file') {
+    try { fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, String(a.content ?? ''), 'utf8'); return { text: '已写入 ' + target } }
+    catch (err) { return { text: '写文件失败：' + err.message, isError: true } }
+  }
+  if (n === 'delete_file') {
+    try { const st = fs.lstatSync(target); if (st.isDirectory()) return { text: '只支持删除单个文件，不允许删除目录', isError: true }; fs.unlinkSync(target); return { text: '已删除 ' + target } }
+    catch (err) { return { text: '删除失败：' + err.message, isError: true } }
+  }
+  return { text: '未知内置文件工具: ' + n, isError: true }
+}
+
 // 写/删操作前：把目标文件备份到 chat-workspace/backups，供出问题回滚
 const BACKUP_WRITE_TOOL = /(write_file|overwrite|delete_file|remove_file|unlink|rmdir|create_docx|create_pdf|create_pptx|rename|move|copy)/i
 function backupBeforeWrite(meta, args) {
@@ -914,6 +1031,14 @@ async function execMcpToolCall(meta, def, args) {
   // 内置 Excel 工具：直接用本机 Python + openpyxl 生成 xlsx
   if (meta && meta.builtin === 'create_xlsx') {
     return await runBuiltinCreateXlsx(args)
+  }
+  // 内置文件读写工具：本机磁盘操作，零依赖
+  if (meta && meta.builtin && ['list_dir', 'read_file', 'write_file', 'delete_file'].includes(meta.builtin)) {
+    return runBuiltinFilesystemTool(meta, args)
+  }
+  // 内置文档生成工具：docx / pdf / pptx
+  if (meta && meta.builtin && ['create_docx', 'create_pdf', 'create_pptx'].includes(meta.builtin)) {
+    return await runBuiltinDocTool(args, meta.builtin.replace('create_', ''))
   }
   // 写/删操作：先备份目标文件
   const bak = backupBeforeWrite(meta, args)
@@ -1029,6 +1154,20 @@ async function collectMcpTools(force) {
       on: true,
       serverId: '__builtin__', serverName: '内置', toolName: 'create_xlsx',
     })
+    // 内置文件工具：本机磁盘读写，零依赖（不依赖外部 MCP 脚本 / COM: 占位符）
+    const builtinFileTools = [
+      { name: 'whale_list_dir', desc: '列出目录下的文件和子目录', tool: 'list_dir', schema: { type: 'object', properties: { path: { type: 'string', description: '目录路径' } }, required: ['path'] } },
+      { name: 'whale_read_file', desc: '读取文本文件内容', tool: 'read_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
+      { name: 'whale_write_file', desc: '创建新文件或覆盖写入已有文本文件', tool: 'write_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' }, content: { type: 'string', description: '要写入的完整文件内容' } }, required: ['path', 'content'] } },
+      { name: 'whale_delete_file', desc: '删除单个文件（不允许删除目录）', tool: 'delete_file', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径' } }, required: ['path'] } },
+      { name: 'whale_create_docx', desc: '在指定路径创建 Word 文档（.docx），内容为给定文本', tool: 'create_docx', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径（.docx）' }, text: { type: 'string', description: '文档内容' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_pdf', desc: '在指定路径创建 PDF 文件，内容为给定文本', tool: 'create_pdf', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径（.pdf）' }, text: { type: 'string', description: '文档内容' } }, required: ['path', 'text'] } },
+      { name: 'whale_create_pptx', desc: '在指定路径创建 PowerPoint 演示文稿（.pptx）。用 text 每页显示相同文本、slides 控制页数（默认1）；或用 slides_text 字符串数组，每项为一页（首行标题，- 开头为要点）', tool: 'create_pptx', schema: { type: 'object', properties: { path: { type: 'string', description: '文件路径（.pptx）' }, text: { type: 'string', description: '每页显示的内容' }, slides: { type: 'integer', description: '页数，默认 1' }, slides_text: { type: 'array', items: { type: 'string' }, description: '每页内容数组' } }, required: ['path'] } },
+    ]
+    for (const t of builtinFileTools) {
+      byName.set(t.name, { id: '__builtin__', serverId: '__builtin__', serverName: '内置', toolName: t.tool, builtin: t.tool })
+      tools.push({ name: t.name, description: t.desc, inputSchema: t.schema, on: true, serverId: '__builtin__', serverName: '内置', toolName: t.tool })
+    }
   }
   mcpToolCache = { tools, byName }
   mcpToolAt = Date.now()
