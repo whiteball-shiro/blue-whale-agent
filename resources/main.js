@@ -723,8 +723,10 @@ const LOCAL_READ_TOOL_RE = /^(get|list|read|search|select|show|describe|desc|cou
 
 function isLocalSafeTool(t) {
   const n = String((t && (t.toolName || t.name)) || '')
+  const full = String((t && (t.name || t.toolName)) || '')
   // 所有 whale_ 前缀都是内置工具（生图/Excel/文件读写/文档生成），白名单放行——内置逻辑自带安全校验与确认
-  if (/^whale_/.test(n)) return true
+  // 注意：内置工具的 toolName 不带 whale_ 前缀（如 write_file），必须用完整 name 判断
+  if (/^whale_/.test(full) || /^whale_/.test(n)) return true
   if (n === 'whale_generate_image' || n === 'generate_image') return true // 内置生图工具：白名单放行（执行时另有确认）
   if (n === 'whale_create_xlsx' || n === 'create_xlsx') return true // 内置 Excel 工具：白名单放行（执行时用 Python 生成 xlsx）
   if (LOCAL_WRITE_TOOL_RE.test(n)) return false
