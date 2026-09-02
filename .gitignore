@@ -37,6 +37,9 @@ __pycache__/
 
 # 本地备份（勿提交）
 _precheck-bak/
+*.bak-xlsx-*
+*.bak-scrapping-*
+resources/dist-old-bak-*/
 
 # 本地运行时状态（记录上次加载的模型）
 chat-workspace/.whale-last-model.json

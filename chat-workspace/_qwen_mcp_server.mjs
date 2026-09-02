@@ -106,6 +106,20 @@ const TOOLS = [
       required: ['path'],
     },
   },
+  {
+    name: 'create_xlsx',
+    description: '在指定路径创建 Excel 表格（.xlsx）。用 rows 传二维数组（如 [["姓名","年龄"],["张三",20]]），第一行默认作为表头加粗；header=false 时则所有行都是普通数据。也可用 text 传多行文本，遇 Tab 或逗号自动分列',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: '文件路径（.xlsx）' },
+        rows: { type: 'array', items: { type: 'array', items: {}, description: '每一行是一个数组，元素为单元格值' }, description: '二维数组，第一行默认作表头' },
+        text: { type: 'string', description: '多行文本，遇 Tab 或逗号分列（与 rows 二选一）' },
+        header: { type: 'boolean', description: '是否把第一行当作表头加粗，默认 true' },
+      },
+      required: ['path'],
+    },
+  },
 ]
 
 function safeResolve(p) {
@@ -160,7 +174,8 @@ function execTool(name, args) {
       }
       case 'create_docx':
       case 'create_pdf':
-      case 'create_pptx': {
+      case 'create_pptx':
+      case 'create_xlsx': {
         const r = safeResolve(a.path)
         if (!r.ok) return { text: r.reason, isError: true }
         if (r.isRoot) return { text: '不允许把目录本身当文件写入', isError: true }
@@ -172,6 +187,8 @@ function execTool(name, args) {
           text: String(a.text ?? ''),
           slides: Math.max(1, parseInt(a.slides, 10) || 1),
           slides_text: Array.isArray(a.slides_text) ? a.slides_text.map(String) : undefined,
+          rows: Array.isArray(a.rows) ? a.rows : undefined,
+          header: a.header !== false,
         }
         fs.writeFileSync(inJson, JSON.stringify(payload), 'utf8')
         try {

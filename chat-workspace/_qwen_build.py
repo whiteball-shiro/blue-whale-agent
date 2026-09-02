@@ -175,6 +175,66 @@ elif kind == "pptx":
             run.font.name = "Calibri"
         prs.save(out)
 
+elif kind == "xlsx":
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        # 兼容纯文本：按行拆分，遇 Tab 或逗号则分列
+        rows = []
+        for ln in str(text).splitlines():
+            ln = ln.strip()
+            if not ln:
+                continue
+            if "\t" in ln:
+                rows.append([c.strip() for c in ln.split("\t")])
+            elif "," in ln:
+                rows.append([c.strip() for c in ln.split(",")])
+            else:
+                rows.append([ln])
+
+    has_header = bool(payload.get("header", True))
+    fill = PatternFill(start_color="FF1F3864", end_color="FF1F3864", fill_type="solid")
+    head_font = Font(bold=True, color="FFFFFFFF")
+    thin = Side(style="thin", color="FFCCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    for r_idx, row in enumerate(rows):
+        cells = []
+        if isinstance(row, (list, tuple)):
+            cells = list(row)
+        elif isinstance(row, dict):
+            cells = [row.get("v", row.get("value", ""))]
+        else:
+            cells = [row]
+        for c_idx, val in enumerate(cells):
+            cell = ws.cell(row=r_idx + 1, column=c_idx + 1, value=val)
+            cell.border = border
+            cell.alignment = Alignment(vertical="center")
+            if has_header and r_idx == 0:
+                cell.font = head_font
+                cell.fill = fill
+                cell.alignment = Alignment(vertical="center", horizontal="center")
+
+    # 列宽自适应（粗略；中文按 2 计）
+    for col in ws.columns:
+        max_len = 0
+        for cell in col:
+            v = cell.value
+            if v is not None:
+                s = str(v)
+                w = sum(2 if ord(ch) > 127 else 1 for ch in s)
+                max_len = max(max_len, w)
+        if max_len:
+            ws.column_dimensions[col[0].column_letter].width = min(max(max_len * 1.2, 8), 50)
+
+    wb.save(out)
+
 else:
     raise SystemExit("unknown kind: " + kind)
 
