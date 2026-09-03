@@ -2087,7 +2087,82 @@ function codexMcpOverrides() {
 // 通用 OpenAI 兼容 LLM（可选来源）：直接调用配置的 base_url + key + model，流式返回
 // 云端 API 来源的系统人设：与本地模型 / Codex 的 AGENTS.md 保持一致的“大肥鱼 + 呆萌”
 const LLM_SYSTEM_PROMPT = '你是桌宠「大肥鱼」，性格温和、友好、乐于助人。回答尽量直接、清晰、口语化，**少用表情符号/emoji**；面对问题要认真、准确、完整地回答，不要因为显得“萌/憨”而敷衍或简化。当系统向你提供了工具（例如生成 Excel/Word/PDF/PPT、读写文件、生图）时，你要主动调用合适工具来完成任务，而不是说自己不会；工具会自动处理文件格式，你只需提供正确的参数。复制/移动图片、PDF、Excel 等二进制文件时，务必用 whale_copy_file（真复制）；绝不要用 write_file 把内容或路径字符串写进 .png/.pdf/.docx 等文件，否则文件会损坏无法打开。'
+
+// ---- 云端硬路由到 Hermes：cloudForceHermes=true 时，每条云端消息都交给 Hermes 处理 ----
+function findHermesBin() {
+  const lc = readChatLocalConfig()
+  if (lc.hermesBin) return String(lc.hermesBin)
+  const guess = path.join(process.env.LOCALAPPDATA || '', 'hermes', 'bin', 'hermes.exe')
+  return guess
+}
+function findNodeBin() {
+  const lc = readChatLocalConfig()
+  if (lc.nodeBin) return String(lc.nodeBin)
+  const guess = 'D:\\node js\\node.exe'
+  if (fs.existsSync(guess)) return guess
+  return 'node'
+}
+let hermesProxyProc = null
+async function ensureHermesProxy() {
+  const port = 18999
+  if (await portOpen(port, 800)) return { ok: true }
+  const proxy = path.join(chatWorkspace(), 'hermes-model-proxy.mjs')
+  if (!fs.existsSync(proxy)) return { ok: false, reason: '缺少模型名修正代理：' + proxy }
+  try {
+    hermesProxyProc = spawn(findNodeBin(), [proxy], { detached: true, stdio: 'ignore', windowsHide: true })
+    hermesProxyProc.unref()
+  } catch (err) {
+    return { ok: false, reason: '启动 Hermes 模型代理失败：' + String(err && err.message || err) }
+  }
+  for (let i = 0; i < 10; i++) {
+    await new Promise((r) => setTimeout(r, 500))
+    if (await portOpen(port, 600)) return { ok: true }
+  }
+  return { ok: false, reason: 'Hermes 模型名修正代理启动超时' }
+}
+function hermesOneShot(prompt) {
+  return new Promise((resolve) => {
+    ensureHermesProxy().then((pr) => {
+      if (!pr.ok) { resolve({ error: pr.reason }); return }
+    const bin = findHermesBin()
+    if (!fs.existsSync(bin)) return resolve({ error: '找不到 hermes.exe（可在 config.local.json 设置 hermesBin）' })
+    const cp = spawn(bin, ['-z', prompt], { cwd: os.homedir(), windowsHide: true })
+    let out = ''
+    let err = ''
+    let done = false
+    const fin = (r) => { if (done) return; done = true; try { clearTimeout(timer) } catch (e) {}; resolve(r) }
+    const timer = setTimeout(() => { killProcessTree(cp.pid); fin({ error: 'Hermes 处理超时（5 分钟），已停止' }) }, 300000)
+    cp.stdout.on('data', (d) => { out += String(d); if (out.length > 200000) out = out.slice(-100000) })
+    cp.stderr.on('data', (d) => { err += String(d); if (err.length > 20000) err = err.slice(-10000) })
+    cp.on('error', (e) => fin({ error: '启动 Hermes 失败：' + String(e && e.message || e) }))
+    cp.on('close', (code) => {
+      const text = String(out || '').trim()
+      if (text) fin({ text })
+      else fin({ error: 'Hermes 没有返回内容' + (code ? '（退出码 ' + code + '）' : '') + (err ? '：' + String(err).slice(-300) : '') })
+    })
+    })
+  })
+}
+async function runHermesCloud(conv, imagePath, onDelta, onDone, onStatus) {
+  const msgs = (conv && conv.messages) || []
+  if (!msgs.length) { onDone({ error: '没有可发送的内容' }); return }
+  const recent = msgs.slice(-12).map((m) => ((m.role === 'user' ? '用户' : '助手') + '：' + String(m.content || '').slice(0, 2000))).join('\n')
+  const last = msgs[msgs.length - 1]
+  let prompt = (recent ? recent + '\n\n' : '') + '用户（最新消息）：' + String(last.content || '')
+  if (imagePath) prompt += '\n（用户还附带了一张图片：' + imagePath + '，需要时可自行读取）'
+  if (onStatus) onStatus('正在交给 Hermes 处理…')
+  const r = await hermesOneShot(prompt)
+  if (r.error) { onDone({ error: r.error }); return }
+  if (onDelta) onDelta(r.text)
+  onDone({ text: r.text })
+}
+
 async function runLlm(conv, model, imagePath, onDelta, onDone, onStatus) {
+  // 硬路由：cloudForceHermes=true 时云端不再直连 API，每条消息都走 Hermes（带 SOUL/技能）
+  if (readChatLocalConfig().cloudForceHermes === true) {
+    await runHermesCloud(conv, imagePath, onDelta, onDone, onStatus)
+    return
+  }
   const cfg = loadConfig()
   const baseUrl = String(cfg.llmBaseUrl || '').trim().replace(/\/+$/, '')
   if (!baseUrl) { onDone({ error: '未配置 LLM 接口地址（llmBaseUrl）' }); return }
