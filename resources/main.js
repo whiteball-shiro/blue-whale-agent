@@ -1268,6 +1268,43 @@ function isBuiltinDupServer(def) {
   if (/server-filesystem|\bmodelcontextprotocol\/server-filesystem\b/i.test(sig)) return true
   return false
 }
+
+// ---- 桌宠自动拉起“带登录态的 Chrome”（Playwright 走 CDP 连接用户自己的浏览器） ----
+function readChatLocalConfig() {
+  try { return JSON.parse(fs.readFileSync(path.join(chatWorkspace(), 'config.local.json'), 'utf8')) }
+  catch (err) { return {} }
+}
+function findChromeExe() {
+  const lc = readChatLocalConfig()
+  if (lc.chromePath) return String(lc.chromePath)
+  const roots = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], path.join(os.homedir(), 'AppData', 'Local')].filter(Boolean)
+  const candidates = roots.map((r) => path.join(r, 'Google', 'Chrome', 'Application', 'chrome.exe'))
+  return candidates.find((p) => { try { return fs.existsSync(p) } catch (e) { return false } }) || candidates[0] || ''
+}
+function cdpPortOf(def) {
+  const args = (def.args || [])
+  const i = args.indexOf('--cdp-endpoint')
+  if (i < 0) return 0
+  const m = /:(\d+)\s*$/.exec(String(args[i + 1] || ''))
+  return m ? Number(m[1]) : 0
+}
+async function ensureChromeCdp(port) {
+  if (await portOpen(port, 1200)) return { ok: true }
+  const lc = readChatLocalConfig()
+  const chrome = findChromeExe()
+  if (!chrome || !fs.existsSync(chrome)) return { ok: false, reason: '找不到 Chrome（可在 config.local.json 里设置 chromePath）' }
+  const userDir = String(lc.chromeUserDataDir || '').trim() || path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'User Data')
+  try {
+    const child = spawn(chrome, ['--user-data-dir=' + userDir, '--remote-debugging-port=' + String(port), '--no-first-run'], { detached: true, stdio: 'ignore' })
+    child.unref()
+  } catch (err) { return { ok: false, reason: '启动 Chrome 失败：' + String(err && err.message || err) } }
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 1000))
+    if (await portOpen(port, 800)) return { ok: true }
+  }
+  return { ok: false, reason: 'Chrome 已在普通模式运行（没有调试端口）。请先完全退出 Chrome，再让桌宠重试一次——之后桌宠会自动拉起带登录态的 Chrome' }
+}
+
 async function collectMcpTools(force) {
   if (mcpToolCache && !force && (Date.now() - mcpToolAt) < 30000) return mcpToolCache
   const cfg = loadConfig()
@@ -1277,6 +1314,14 @@ async function collectMcpTools(force) {
   await Promise.all(servers.map(async (def) => {
     try {
       const c = mcp.getClient(def)
+      // Playwright 走 CDP 连接用户自己的 Chrome：端口不在线就自动拉起带登录态的 Chrome
+      if (def.id === 'playwright') {
+        const port = cdpPortOf(def)
+        if (port) {
+          const ready = await ensureChromeCdp(port)
+          if (!ready.ok) throw new Error(ready.reason)
+        }
+      }
       await c.connect()
       const t = await c.listTools()
       for (const tool of t) {
