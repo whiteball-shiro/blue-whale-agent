@@ -2126,7 +2126,11 @@ function hermesOneShot(prompt) {
       if (!pr.ok) { resolve({ error: pr.reason }); return }
     const bin = findHermesBin()
     if (!fs.existsSync(bin)) return resolve({ error: '找不到 hermes.exe（可在 config.local.json 设置 hermesBin）' })
-    const cp = spawn(bin, ['-z', prompt], { cwd: os.homedir(), windowsHide: true })
+    const lc = readChatLocalConfig()
+    const workDir = String(lc.hermesWorkDir || '').trim() || os.homedir()
+    const skillName = String(lc.hermesSkill || '').trim()
+    const args = skillName ? ['-s', skillName, '-z', prompt] : ['-z', prompt]
+    const cp = spawn(bin, args, { cwd: workDir, windowsHide: true })
     let out = ''
     let err = ''
     let done = false
