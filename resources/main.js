@@ -1226,7 +1226,7 @@ async function execMcpToolCall(meta, def, args) {
 
 function buildLocalMcpTools(enabled) {
   const cfg = loadConfig()
-  let budget = 6000 // 工具 schema 的 token 预算（内置文件/文档工具较多，需保证全部注入；生成类任务历史短）
+  let budget = 12000 // 工具 schema 的 token 预算（含外部 MCP 如 windows-mcp 的 20 个工具 + 内置工具，需保证全部注入）
   const out = []
   for (const t of (enabled || [])) {
     const def = (cfg.mcps || []).find((d) => d.id === t.serverId)
@@ -1440,7 +1440,7 @@ async function runLmStudio(conv, model, imagePath, onDelta, onDone, onStatus) {
     try {
       const mc = await Promise.race([
         collectMcpTools(),
-        new Promise((res) => setTimeout(() => res({ tools: [], byName: new Map() }), 8000)),
+        new Promise((res) => setTimeout(() => res({ tools: [], byName: new Map() }), 25000)),
       ])
       const enabled = (mc.tools || []).filter((t) => t.on)
       if (enabled.length) {
@@ -1684,7 +1684,7 @@ async function localMcpToolNames() {
     if (cfg.chatMcp !== true) return []
     const mc = await Promise.race([
       collectMcpTools(),
-      new Promise((res) => setTimeout(() => res({ tools: [], byName: new Map() }), 8000)),
+      new Promise((res) => setTimeout(() => res({ tools: [], byName: new Map() }), 25000)),
     ])
     const enabled = (mc.tools || []).filter((t) => t.on)
     const payload = buildLocalMcpTools(enabled)
@@ -2119,7 +2119,7 @@ async function runLlm(conv, model, imagePath, onDelta, onDone, onStatus) {
     try {
       const mc = await Promise.race([
         collectMcpTools(),
-        new Promise((res) => setTimeout(() => res({ tools: [], byName: new Map() }), 8000)),
+        new Promise((res) => setTimeout(() => res({ tools: [], byName: new Map() }), 25000)),
       ])
       const enabled = (mc.tools || []).filter((t) => t.on)
       if (enabled.length) {
