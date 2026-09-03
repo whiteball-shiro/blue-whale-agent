@@ -1,5 +1,6 @@
 {
   "$comment": "把本文件复制为 config.local.json，按你的机器填写。只含占位符，不含任何真实密钥/路径。",
+  "cloudExtraPrompt": "",
   "llmBaseUrl": "COM:LOCAL_BASE_URL",
   "llmApiKey": "",
   "localModelDir": "COM:LOCAL_MODEL_DIR",
