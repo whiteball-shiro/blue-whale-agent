@@ -2094,7 +2094,13 @@ async function runLlm(conv, model, imagePath, onDelta, onDone, onStatus) {
   const apiKey = String(cfg.llmApiKey || '')
   const useModel = String(cfg.llmModel || model || '').trim()
   if (!useModel) { onDone({ error: '未配置 LLM 模型名（llmModel）' }); return }
-  const messages = [{ role: 'system', content: LLM_SYSTEM_PROMPT }].concat((conv.messages || []).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })))
+  // 云端模式专属附加 prompt（写在 chat-workspace/config.local.json 的 cloudExtraPrompt，仅云端生效）
+  let llmSystem = LLM_SYSTEM_PROMPT
+  try {
+    const extra = String((readChatLocalConfig().cloudExtraPrompt || '')).trim()
+    if (extra) llmSystem += '\n\n' + extra
+  } catch (err) { /* 忽略 */ }
+  const messages = [{ role: 'system', content: llmSystem }].concat((conv.messages || []).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })))
   if (!(conv.messages || []).length) { onDone({ error: '没有可发送的内容' }); return }
   const isVision = resolveVision(useModel)
   if (imagePath && isVision) {
